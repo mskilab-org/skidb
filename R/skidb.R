@@ -28,7 +28,7 @@
 #' @import parallel
 #' @import GenomicRanges
 #' @import gUtils
-#' @import data.table
+#' @importFrom data.table data.table setkey setkeyv := setnames is.data.table as.data.table
 
 
 #' @name skidb_env
@@ -41,8 +41,8 @@
 #' This can be used to
 #' populate the file pointers with the appropriate files or rewire the paths using environment variables
 #' having the same name as the skidb_env environment variable.  skidb_env is used by other skidb functions
-#' to grab files and paths to software. 
-#' 
+#' to grab files and paths to software.
+#'
 #'
 #' gets all the individual / pair and sample info for an individual / pair set
 #' @author Marcin Imielinski
@@ -73,7 +73,7 @@ skidb_env = function(query = NULL)
             PFAM.HUMAN = paste(DB_ROOT, '/Pfam/Pfam-A.full.human.lean', sep = ""),
             PFAM.HUMAN.RDS = paste(DB_ROOT, '/Pfam/Pfam-A.full.human.lean.rds', sep = ""),
             PFAM.HUMAN.META.RDS = paste(DB_ROOT, '/Pfam/Pfam-A.full.human.meta.rds', sep = ""),
-            PFAM.FA = paste(DB_ROOT, '/Pfam/Pfam-A.fasta', sep = ""),  
+            PFAM.FA = paste(DB_ROOT, '/Pfam/Pfam-A.fasta', sep = ""),
             GAF.DIR = paste(DB_ROOT, '/GAF/', sep = "/"),
             GAF.SOURCE = paste(GAF.DIR, 'TCGA.hg19.June2011.gaf', sep = "/"),
             CCDS.MAP.FILE = paste(DB_ROOT, '/NCBI/CCDS2Sequence.current.txt', sep = ''),
@@ -96,7 +96,7 @@ skidb_env = function(query = NULL)
             KG2RG.FILE.HG18 = paste(DB_ROOT, '/UCSC/knownToRefSeq.txt', sep = ""),
             GENOMIC.FEATURES.ROOT = paste(DB_ROOT, '/GenomicFeatures/', sep = "/"),
             UCSC.CHROM.SIZES.PATH = paste(DB_ROOT, "/UCSC/hg19.ucsc.chrom.sizes.txt", sep = ""),
-            UCSC.DIR = UCSC.DIR, 
+            UCSC.DIR = UCSC.DIR,
             REPEATMASKER.HG19 = paste(UCSC.DIR, 'hg19.repeatmask.txt', sep = '/'),
             REPEATMASKER.HG19.GR = paste(UCSC.DIR, 'hg19.repeatmask.rds', sep = '/'),
             ENTREZ.GENE.FN = paste(DB_ROOT, "/Entrez/Homo_sapiens.gene_info", sep = ""),
@@ -110,16 +110,16 @@ skidb_env = function(query = NULL)
             FH.WKFLOW.URL = "http://firehose:8080/cga/ws/workflow/execute/Individual_Set/%s/%s?workspaceName=%s",
             FH.START.URL = "http://firehose:8080/cga/ws/pipeline/start/Individual_Set/%s/%s?workspaceName=%s",
             FH.IMPORT.URL = "http://firehose:8080/cga/ws/list/Individual_Set?importFromFile=&workspaceName=%s",
-            FH.UNPW = '~/.fh.config', 
+            FH.UNPW = '~/.fh.config',
             FH.GETCONTAINERS.URL = "http://firehose:8080/cga/ws/list/%s?getContainers=&%s&containerType=%s&workspaceName=%s",
             FISS = '/xchip/tcga/Tools/gdac/bin/fiss',
             FISS_TMP = paste0(DB_ROOT, '/tmp.fiss')
         )
-            
+
 
         if (is.null(query))
             return(env)
-        
+
         if (nchar(Sys.getenv(query))>0)
             return(Sys.getenv(query))
         else
@@ -130,7 +130,7 @@ skidb_env = function(query = NULL)
             }
     }
 
-##  ________  __    __        __    __    __      __  __ 
+##  ________  __    __        __    __    __      __  __
 ## |        \|  \  |  \      |  \  |  \  |  \    |  \|  \
 ## | $$$$$$$$| $$  | $$      | $$  | $$ _| $$_    \$$| $$
 ## | $$__    | $$__| $$      | $$  | $$|   $$ \  |  \| $$
@@ -163,54 +163,54 @@ fiss_get = function(set = NULL,
     stop('domain not recognized')
 
   path_type = ifelse(fuse, 'FusePath', 'SystemPath')
-  
+
   FISS = paste(skidb_env('FISS'), '-d ', domain)
   if (grepl(' ', wkspace))
       {
           warning('Workspace contains spaces .. trimming')
           wkspace = gsub(' .*', '', wkspace)
       }
-  
+
   if (grepl('(pair)|(pset)', type, ignore.case = T))
     {
       if (verbose)
         cat('Getting pairs\n')
 
-      if (domain == 'tcga-gdac')                                
+      if (domain == 'tcga-gdac')
           str = paste(FISS, ' annot_get ', wkspace, ' pair pset=', set, sep = '')
       else
           str = paste(FISS, ' annot_get ', " -p ", path_type, " ", wkspace, ' pair pset=', set, sep = '')
 
       if (verbose)
         cat('Running:', str, '\n')
-      
+
       p = pipe(str);
-      
+
       pairs= read.delim(p, strings = F)
       rownames(pairs) = pairs$pair_id;
-      
+
       if (any(grepl('There\\.are\\.validation\\.errors', colnames(pairs))))
         stop('Pair set / workspace combination not found')
-      
+
       if (verbose)
         cat('Getting samples\n')
 
-      if (domain == 'tcga-gdac')                                
+      if (domain == 'tcga-gdac')
           str = paste(FISS,  ' annot_get ', wkspace, ' sample pset=', set, sep = '')
       else
           str = paste(FISS,  ' annot_get ', " -p ", path_type, " ", wkspace, ' sample pset=', set, sep = '')
-            
+
       if (verbose)
         cat('Running:', str, '\n')
-      
+
       p = pipe(str);
       samples = read.delim(p, strings = F)
-      
+
       if (verbose)
         cat('Matching up pairs and samples\n')
 
       sample_fields = setdiff(names(samples), c('individual_id'))
-      
+
       pairs[, paste('Tumor', sample_fields, sep = "_")] = samples[match(pairs$case_sample, samples$sample_id), sample_fields]
       pairs[, paste('Normal', sample_fields, sep = "_")] = samples[match(pairs$control_sample, samples$sample_id), sample_fields]
 
@@ -224,18 +224,18 @@ fiss_get = function(set = NULL,
           pairs$individual_id[((match(names(s2p), c(pairs$case_sample, pairs$control_sample))-1) %% nrow(pairs))+1] = s2p
 
           ## now fetch individual level annotations for all individuals in pair set
-          if (domain == 'tcga-gdac')                                
+          if (domain == 'tcga-gdac')
               str = paste(FISS,  ' annot_get ', wkspace, ' indiv=', paste(pairs$individual_id, collapse = ','), sep = '')
           else
               str = paste(FISS,  ' annot_get ', " -p ", path_type, " ", wkspace, ' indiv=', paste(pairs$individual_id, collapse = ','), sep = '')
 
           if (verbose)
-            
+
           p = pipe(str)
 
           CHUNKSIZE = 50
           ghetto.chunks = c(seq(1, nrow(pairs), CHUNKSIZE), nrow(pairs)+1); ## FH can't handle too large get container requests
-          
+
           indiv_annots = do.call('rrbind', mclapply(ghetto.chunks[1:(length(ghetto.chunks)-1)], function(i)
             {
               if (verbose)
@@ -250,7 +250,7 @@ fiss_get = function(set = NULL,
               else
                   str = paste(FISS, ' annot_get ', " -p ", path_type, " ", wkspace, '  indiv=',
                       paste(pairs$individual_id[i:min(nrow(pairs), i+CHUNKSIZE-1)], collapse = ','), sep = '')
-              
+
               p = pipe(str)
               out = read.delim(p, strings = F, header = T)
               return(out);
@@ -263,8 +263,8 @@ fiss_get = function(set = NULL,
               pairs[, cnames] = NA
               pairs[ix, cnames] = indiv_annots[, cnames]
             }
-          
-        }      
+
+        }
       return(pairs)
     }
   else if (grepl('(indiv)|(iset)', type, ignore.case = T))  # individual
@@ -276,9 +276,9 @@ fiss_get = function(set = NULL,
           str = paste(FISS,  ' annot_get ',wkspace, ' indiv iset=', set, sep = '')
       else
           str = paste(FISS,  ' annot_get ', " -p ", path_type, " ", wkspace, ' indiv iset=', set, sep = '')
-              
+
       p = pipe(str)
-      
+
       individuals= read.delim(p, strings = F)
       rownames(individuals) = individuals$individual_id;
 
@@ -287,12 +287,12 @@ fiss_get = function(set = NULL,
 
       if (verbose)
         cat('Getting samples\n')
-      
-      if (domain == 'tcga-gdac')                                
+
+      if (domain == 'tcga-gdac')
           p = pipe(paste(FISS,  ' annot_get ', wkspace, ' sample iset=', set, sep = ''))
       else
           p = pipe(paste(FISS,  ' annot_get ', " -p ", path_type, " ", wkspace, ' sample iset=', set, sep = ''))
-      
+
       samples = read.delim(p, strings = F)
 
       if (get.containers)
@@ -301,9 +301,9 @@ fiss_get = function(set = NULL,
             cat('Getting containers\n')
           containers = fiss_getcontainers(samples$sample_id, 'sample', wkspace = wkspace, domain = domain, mc.cores = mc.cores)
           s2p = structure(containers$Individual, names = containers$Sample)
-        }          
+        }
       else # hack
-        {          
+        {
           if (!is.null(samples$Individual_Id))
             s2p = structure(samples$Individual_Id, names = samples$sample_id)
           else if (!is.null(samples$individual_id))
@@ -311,27 +311,27 @@ fiss_get = function(set = NULL,
           else
             s2p = structure(gsub('\\-Tumor|\\-Normal', '', samples$sample_id), names = samples$sample_id)
         }
-      
+
       if (verbose)
         cat('Matching up individuals and samples\n')
-      
+
       sample_fields = setdiff(names(samples), c('individual_id'))
 
       if ((sample_type_col %in% names(samples))) ## "type" is flex
           samples$sample_type = samples[, sample_type_col]
       else
           samples$sample_type = "Sample"
-      
+
       ix = is.na(samples$sample_type) | nchar(samples$sample_type)==0
       if (any(ix))
           samples$sample_type[ix] = "Sample"
-      
+
       ## now we want "sample_type" to aggressively dedup sample --> individual
       ## mappings, since we will create an extra set of columns for
       ## each unique value of sample_type, we want to avoid overwriting
       ## in case there are several samples of the same type for the same individuals
       samples$sample_type = sapply(strsplit(dedup(paste(s2p[samples$sample_id], samples$sample_type, sep = '\t'), suffix = ''), '\t'), function(x) x[2])
-      
+
       sample.split = split(samples, samples$sample_type)
 
       for (stype in names(sample.split))
@@ -341,7 +341,7 @@ fiss_get = function(set = NULL,
           individuals[, fields] = NA;
           individuals[ix[!is.na(ix)], fields] = sample.split[[stype]][!is.na(ix), sample_fields]
         }
-                
+
       return(individuals)
   }
   else if (grepl('(samp)|(sset)', type, ignore.case = T))  # sample
@@ -351,37 +351,37 @@ fiss_get = function(set = NULL,
               str = paste(FISS,  ' annot_get ', wkspace, ' sample sset=', set, sep = '')
           else
               str = paste(FISS,  ' annot_get ', " -p ", path_type, " ", wkspace, ' sample pset=', set, sep = '')
-          
+
           if (verbose)
               cat('Running:', str, '\n')
           p = pipe(str)
-          
+
           samples = read.delim(p, strings = F)
-          
+
           if (any(grepl('There\\.are\\.validation\\.errors', colnames(samples))))
               if (domain == 'tcga-gdac')
                   stop('Sample set / workspace combination not found')
               else
                   {
                       str = paste(FISS,  ' annot_get ', " -p ", path_type, " ", wkspace, ' sample iset=', set, sep = '')
-                      p = pipe(str)                      
+                      p = pipe(str)
                       samples = read.delim(p, strings = F)
 
                       if (any(grepl('There\\.are\\.validation\\.errors', colnames(samples))))
-                          stop('Sample set / workspace combination not found')                      
+                          stop('Sample set / workspace combination not found')
                   }
 
           if (domain != 'tcga-gdac')
               if (nrow(samples)>0)
                   {
-                      containers = tryCatch(fiss_getcontainers(samples$sample_id, 'sample', wkspace, verbose = verbose, mc.cores = mc.cores, domain = domain), error = function(e) data.frame())                     
-                      
+                      containers = tryCatch(fiss_getcontainers(samples$sample_id, 'sample', wkspace, verbose = verbose, mc.cores = mc.cores, domain = domain), error = function(e) data.frame())
+
                       if (nrow(containers)>0)
                           samples$individual_id =  structure(containers$Individual, names = containers$Sample)[samples$sample_id]
-                      
+
                       rownames(samples) = samples$sample_id
                   }
-          
+
           return(samples)
       }
   else
@@ -396,16 +396,16 @@ fiss_get = function(set = NULL,
 #'
 #' low level function to get containers
 #'
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 fiss_getcontainers = function(id, type = 'sample', wkspace = Sys.getenv('FIREHOSE_WORKSPACE'), verbose = F, mc.cores = 1, domain = 'cga')
     {
-        
+
     if (!(domain %in% c('cga', 'tcga-gdac', 'gtex')))
-      stop('domain not recognized')  
+      stop('domain not recognized')
     FISS = paste(skidb_env('FISS'), '-d ', domain)
-    
+
     CHUNKSIZE = 50
     ghetto.chunks = c(seq(1, length(id), CHUNKSIZE), length(id)+1); ## FH can't handle too large get container requests
 
@@ -423,7 +423,7 @@ fiss_getcontainers = function(id, type = 'sample', wkspace = Sys.getenv('FIREHOS
 
     if (nrow(containers)==0)
         return(containers)
-    
+
     require(Hmisc)
 #    header.ix = c(which(capitalize(containers[,1],un = T) %in% capitalize(type, un = T)), nrow(containers)+1)
     header.ix = c(which(skitools::capitalize(containers[,1]) %in% capitalize(type)), nrow(containers)+1)
@@ -431,10 +431,10 @@ fiss_getcontainers = function(id, type = 'sample', wkspace = Sys.getenv('FIREHOS
 
     if (is.null(dim(sub.tabs)))
       return(data.frame())
-    
+
     sub.tabs[,3] = sub.tabs[,2]-sub.tabs[,1]+1
-    
-    sub.tab.id = unlist(lapply(1:nrow(sub.tabs), function(x) rep(x, sub.tabs[x, 3])))    
+
+    sub.tab.id = unlist(lapply(1:nrow(sub.tabs), function(x) rep(x, sub.tabs[x, 3])))
     tmp.split = lapply(split(containers, sub.tab.id), function(x) {nm = x[1,]; y = x[-1, ]; colnames(y) = nm; y})
 
     tmp.split = tmp.split[sapply(tmp.split, nrow)>0]
@@ -447,12 +447,12 @@ fiss_getcontainers = function(id, type = 'sample', wkspace = Sys.getenv('FIREHOS
     unames = unique(tmp.split.colnames)
 
     tmp.split = lapply(unames, function(x) do.call('rbind', tmp.split[which(tmp.split.colnames %in% x)]))
-        
+
     containers = tmp.split[[1]]
     if (length(tmp.split)>1)
       for (i in 2:length(tmp.split))
         containers = merge(containers, tmp.split[[i]], by = names(containers)[1], all = T)
-              
+
     return(containers)
   }
 
@@ -466,12 +466,12 @@ fiss_getcontainers = function(id, type = 'sample', wkspace = Sys.getenv('FIREHOS
 #'
 #' @author Marcin Imielinski
 #' @export
-fiss_delete = function(  
+fiss_delete = function(
   entities = NULL,
   type = 'Individual', # can also be pair
-  space = Sys.getenv('FIREHOSE_WORKSPACE'),  
-  wkspace = space, 
-  char = F,  
+  space = Sys.getenv('FIREHOSE_WORKSPACE'),
+  wkspace = space,
+  char = F,
   domain = 'cga')
   {
     if (!(domain %in% c('cga', 'tcga-gdac', 'gtex')))
@@ -479,7 +479,7 @@ fiss_delete = function(
     FISS = paste(skidb_env('FISS'), '-d ', domain)
 
     if (!char)
-        {    
+        {
             if (grepl('indiv', type, ignore.case = T))
                 system(paste(FISS, ' indiv_delete ', wkspace, paste(entities, collapse = ' ')))
             else if (grepl('pair', type, ignore.case = T))
@@ -530,7 +530,7 @@ fiss_task = function(
   name = NULL, ## (scalar) task name, if null will output a vector of task names in workspace
   entity = NULL, ## entity name
   type = 'pset', ## (scalar) entity type on which task operates (pset, iset, sset, indiv, sample, pair)
-  start = F, ## if true will "start" 
+  start = F, ## if true will "start"
   stop = F, ## if true will "stop" task (overrides stop)
   export = FALSE, ## if true will export xml of task to a character vector
   verbose = F,
@@ -541,7 +541,7 @@ fiss_task = function(
     if (!(domain %in% c('cga', 'tcga-gdac', 'gtex')))
       stop('domain not recognized')
     FISS = paste(skidb_env('FISS'), '-d ', domain)
-    
+
     if (is.null(name))
       {
         p = pipe(paste(FISS, ' task_list ', wkspace))
@@ -557,14 +557,14 @@ fiss_task = function(
             system(paste('rm', rfile))
             return(out)
         }
-    else 
+    else
       {
         if (is.null(entity))
           stop('entity must be specified')
 
         if (!(type %in% c('pset', 'iset', 'sset', 'indiv', 'sample', 'pair')))
           stop('type must be one of the following: ', paste(c('pset', 'iset', 'sset', 'indiv', 'sample', 'pair'), collapse = ', '))
-                
+
         if (stop)
           cmd = 'task_stop'
         else if (start)
@@ -609,28 +609,28 @@ fiss_list = function(
     if (!(domain %in% c('cga', 'tcga-gdac', 'gtex')))
       stop('domain not recognized')
     FISS = paste(skidb_env('FISS'), '-d ', domain)
-    
+
     ALLOWABLE.TYPES = c('pset', 'iset', 'sset', 'indiv', 'sample', 'pair', 'task', 'space')
-    
+
     if (!(type %in% ALLOWABLE.TYPES))
       stop('type must be one of the following: ', paste(ALLOWABLE.TYPES, collapse = ', '))
-    
+
     cmd = paste(type, 'list', sep = '_')
 
     if (type %in% c('pair', 'indiv', 'sample'))
-        {            
+        {
             if (!is.null(set) | type != 'pair')
                 str = paste(FISS, ' ', cmd, ' ', wkspace, set)
             else
                 str = paste(FISS, ' ', cmd, wkspace, 'all')
         }
-    
+
     else
       str = paste(FISS, ' ', cmd, ' ', wkspace)
 
     if (verbose)
         print(str)
-    
+
     p = pipe(str)
     out = readLines(p)
     close(p)
@@ -652,8 +652,8 @@ fiss_list = function(
 #' (NOTE: importing a sample annotation = annotating a sample, or setting an annotation for a sample)
 #'
 #' Value of dat depends on value of type
-#' 
-#' if type = 'sample' or 'pair' then dat is data.frame whose rows are named by the individual or pair_id, depending the value of type, i.e. 
+#'
+#' if type = 'sample' or 'pair' then dat is data.frame whose rows are named by the individual or pair_id, depending the value of type, i.e.
 #' "pair_id" if type = 'Pair', 'sample_id' if type = 'Sample', and the remaining columns are annotations to add
 #' NOTE: annotations already have to be declared from within firehose, not currently possibly to do from FISS
 #'
@@ -672,7 +672,7 @@ fiss_import = function(dat,
   {
     if (is.data.table(dat))
         dat = as.data.frame(dat)
-    
+
     system(paste('mkdir -p', skidb_env('FISS_TMP')))
     if (!(domain %in% c('cga', 'tcga-gdac', 'gtex')))
       stop('domain not recognized')
@@ -694,11 +694,11 @@ fiss_import = function(dat,
         rnames = paste(skidb_env('FISS_TMP'), '/tmp', runif(length(tabs)), sep = '')
         mapply(write.tab, tabs, rnames)
         system(paste(FISS, 'pair_import ', wkspace, paste(rnames, collapse = ' ')))
-        system(paste('rm', paste(rnames, collapse = ' ')))        
+        system(paste('rm', paste(rnames, collapse = ' ')))
       }
     else if (grepl('indiv', type, ignore.case = T))
       {
-        ix <- max(grep('^individual_id$', colnames(dat), ignore.case = T), 1)        
+        ix <- max(grep('^individual_id$', colnames(dat), ignore.case = T), 1)
         individual_id = dat[, ix]
         dat = dat[, -ix, drop = F]
 
@@ -706,18 +706,18 @@ fiss_import = function(dat,
           tabs = lapply(colnames(dat), function(x) cbind(data.frame(Individual_Id = individual_id), dat[, x, drop = FALSE]))
         else
           tabs = list(data.frame(Individual_Id = individual_id))
-        
+
         rnames = paste(skidb_env('FISS_TMP'), '/tmp', runif(length(tabs)), sep = '')
         mapply(write.tab, tabs, rnames)
         system(paste(FISS, 'indiv_import ', wkspace, paste(rnames, collapse = ' ')))
-        system(paste('rm', paste(rnames, collapse = ' ')))        
+        system(paste('rm', paste(rnames, collapse = ' ')))
       }
     else if (grepl('samp', type, ignore.case = T))
       {
-        ix <- max(grep('^sample_id$', colnames(dat), ignore.case = T), 1)        
+        ix <- max(grep('^sample_id$', colnames(dat), ignore.case = T), 1)
         sample_id = dat[, ix]
         dat = dat[, -ix, drop = F]
-        
+
         if (ncol(dat)>0)
           tabs = lapply(colnames(dat), function(x) cbind(data.frame(Sample_Id = sample_id), dat[, x, drop = FALSE]))
         else
@@ -726,7 +726,7 @@ fiss_import = function(dat,
         rnames = paste(skidb_env('FISS_TMP'), '/tmp', runif(length(tabs)), sep = '')
         mapply(write.tab, tabs, rnames)
         system(paste(FISS, 'sample_import ', wkspace, paste(rnames, collapse = ' ')))
-        system(paste('rm', paste(rnames, collapse = ' ')))        
+        system(paste('rm', paste(rnames, collapse = ' ')))
       }
     else if (grepl('iset', type, ignore.case = T))
       {
@@ -759,7 +759,7 @@ fiss_import = function(dat,
         system(paste('rm', rnames))
       }
     else if (grepl('(wkspace)|(workspace)', type, ignore.case = T))
-      {        
+      {
         if (!is.vector(dat))
           stop('input for wkspace annotation import must be a named vector')
         sapply(names(dat), function(x)
@@ -768,7 +768,7 @@ fiss_import = function(dat,
     else
       stop(paste('type argument value', type, 'not implemented'))
   }
-  
+
 #' @name fiss_new_set
 #' @title fiss_new_set
 #'
@@ -798,18 +798,18 @@ fiss_new_set = function(samples, space, verbose = T)
 
     samples = as.data.frame(samples)
     individuals = data.frame(individual_id = unique(samples$individual_id))
-    
+
     if (!is.null(samples$iset_id))
       isets = samples[!duplicated(samples$iset_id, samples$individual_id), c('iset_id', 'individual_id'), ]
-   
+
     pairs = isets = psets = NULL
-    
+
     if (!is.null(samples$pair_id))
       if(!is.null(samples$case))
         {
           case.samples = samples[samples$case, ]
           control.samples = samples[!samples$case, ]
-          
+
           paired = intersect(case.samples$pair_id, control.samples$pair_id)
           if (length(paired>0))
             pairs = data.frame(pair_id = paired, individual_id = case.samples$individual_id[match(paired, case.samples$pair_id)],
@@ -821,20 +821,20 @@ fiss_new_set = function(samples, space, verbose = T)
         }
       else
         warning('must include logical $case field if including pair_id, otherwise will be ignored')
-    
+
     individuals = data.frame(individual_id = unique(samples$individual_id))
-    
+
     if (!is.null(samples$iset_id))
       isets = samples[!duplicated(samples$iset_id, samples$pair_id), c('iset_id', 'individual_id')]
-    
+
     if (!is.null(samples$pset_id) & !is.null(pairs))
       psets = samples[!duplicated(samples$pset_id, samples$pair_id) & samples$pair_id %in% pairs$pair_id, c('pset_id', 'pair_id')]
-    
+
     scols = c('sample_id', 'individual_id', colnames(samples)[!(colnames(samples) %in% c('sample_id', 'individual_id', 'pair_id', 'iset_id', 'case', 'pset_id'))])
     samples = samples[, scols]
     samples = samples[!duplicated(samples), ]
 
-    ## have to import in this order .. 
+    ## have to import in this order ..
     ## first individuals --> samples --> pairs --> pair_sets (+/- isets)
 
     if (verbose)
@@ -846,7 +846,7 @@ fiss_new_set = function(samples, space, verbose = T)
       {
         if (verbose)
           cat('Importing individual sets\n')
-        
+
         fiss_import(isets, space = space, type = 'iset')
       }
 
@@ -857,14 +857,14 @@ fiss_new_set = function(samples, space, verbose = T)
     if (!is.null(pairs))
       {
         if (verbose)
-          cat('Importing pairs\n') 
+          cat('Importing pairs\n')
         fiss_import(pairs, space = space, type = 'pair')
       }
 
     if (!is.null(psets))
       {
         if (verbose)
-          cat('Importing pair sets\n') 
+          cat('Importing pair sets\n')
         fiss_import(psets, space = space, type = 'pset')
       }
   }
@@ -875,8 +875,8 @@ fiss_new_set = function(samples, space, verbose = T)
 #' @title fiss_status
 #'
 #' @description
-#' 
-#' Gets workflow status for iset in workspace. 
+#'
+#' Gets workflow status for iset in workspace.
 #'
 #' NOTE: requires that a file ~/.fh.config exists in home directory with a single line: "-u username:password"
 #' (where username = fh username, password = fh password) --> this file should be "chmod 700" to maintain (some) pw security
@@ -892,14 +892,14 @@ fh_status = function(workflow = "Capture_Workflow",  # eg Capture_QC_Workflow, W
       stop(sprintf('Need to create file %s, containing single line "-u username:password"', skidb_env('FH.UNPW')))
     else
       fh.unpw = gsub('\\-u ', '', readLines(skidb_env('FH.UNPW')));
-      
+
     tmp = getURL(sprintf(skidb_env('FH.WKFLOW.URL'), isetname, workflow, wkspace), userpwd = fh.unpw);
-    con = textConnection(tmp)    
+    con = textConnection(tmp)
     out= read.delim(con, strings = F, skip = 2, header = TRUE);
     close(con);
     rownames(out) = out$Pipeline;
     out$Pipeline = NULL;
-    
+
     return(out);
   }
 
@@ -917,15 +917,15 @@ fh_status = function(workflow = "Capture_Workflow",  # eg Capture_QC_Workflow, W
 #' @author Marcin Imielinski
 #' @export
 fh_start = function(pipeline, #
-  isetname = DEFAULT.ISET, 
+  isetname = DEFAULT.ISET,
   wkspace = Sys.getenv('FIREHOSE_WORKSPACE'))
   {
     if (!file.exists(skidb_env('FH.UNPW')))
       stop(sprintf('Need to create file %s, containing single line "-u username:password"', skidb_env('FH.UNPW')))
     else
       fh.unpw = gsub('\\-u ', '', readLines(skidb_env('FH.UNPW')));
-      
-    out = getURL(sprintf(skidb_env('FH.START.URL'), isetname, gsub(' ', '%20', pipeline), wkspace), userpwd = fh.unpw);    
+
+    out = getURL(sprintf(skidb_env('FH.START.URL'), isetname, gsub(' ', '%20', pipeline), wkspace), userpwd = fh.unpw);
     return(out);
   }
 
@@ -951,7 +951,7 @@ fh_import = function(name, inds,  #
       fh.unpw = gsub('\\-u ', '', readLines(skidb_env('FH.UNPW')));
 
     tmpname = paste('~/.tmp.', round(1e6*runif(1)), '.txt', sep = "");
-    write.table(data.frame(individual_set_id = name, individual_id = inds, stringsAsFactors = F), tmpname, row.names = F, sep = "\t", quote = F);    
+    write.table(data.frame(individual_set_id = name, individual_id = inds, stringsAsFactors = F), tmpname, row.names = F, sep = "\t", quote = F);
     out = postForm(uri = sprintf(skidb_env('FH.IMPORT.URL'), wkspace), importFile=paste('', file_path_as_absolute(tmpname), sep = ""), .opts = curlOptions(userpwd = fh.unpw));
     system(paste('rm', tmpname));
     return(out);
@@ -965,9 +965,9 @@ fh_import = function(name, inds,  #
 #' @description
 #'
 #' Deprecated (pre-fiss) function of accessing firehose
-#' 
+#'
 #' Retrieves sample or individual table from firehose for individual set isetname and workspace wkspace.
-#' NOTE: isetname can be "All", in which case all individuals in that workspace are retrieved. 
+#' NOTE: isetname can be "All", in which case all individuals in that workspace are retrieved.
 #'
 #' If isetname, wkspace don't exist will yield a two row table that contains errors.
 #'
@@ -977,7 +977,7 @@ fh_import = function(name, inds,  #
 #' @export
 get_fh = function(isetname,
   wkspace = "An_LUAD",
-  type = 'Individual', # can also be "Sample"  
+  type = 'Individual', # can also be "Sample"
   merged = TRUE,
   hack.sample.mapping = T, # hack for individual--> sample mapping where we strip -Tumor or -Normal from sample ID, to get individual ID
                            # if F will perform mapping using correct (but currently very slow way) ie FH getcontainers query
@@ -997,14 +997,14 @@ get_fh = function(isetname,
       type = "Sample"
     else
       stop("Variable 'type' not recognized, should be either sample or individual");
-    
+
     if (!merged)
       {
         if (!file.exists(skidb_env('FH.UNPW')))
           stop(sprintf('Need to create file %s, containing single line "-u username:password"', skidb_env('FH.UNPW')))
         else
           fh.unpw = gsub('\\-u ', '', readLines(skidb_env('FH.UNPW')));
-        
+
         if (isetname == 'All')
           {
             ## list all entities in workspace
@@ -1015,7 +1015,7 @@ get_fh = function(isetname,
 
             ## given entity list, grab annotations all entities in workspace
             CHUNK.SIZE = 100; # bolus size for firehose URL
-            entities = entities[nchar(entities)>0];  
+            entities = entities[nchar(entities)>0];
             out = NULL;
             for (i in seq(1, length(entities), CHUNK.SIZE))
               {
@@ -1034,21 +1034,21 @@ get_fh = function(isetname,
             out= read.delim(con, strings = F, row.names = NULL);
             close(con);
           }
-        
+
         if (is.null(out$sample_id) & is.null(out$individual_id))
           stop('Empty table returned.  Check individual set');
-        
+
         if (type == "Sample")
           {
             if (hack.sample.mapping)  # the quick and dirty way
               out$individual_id = gsub('(\\-Tumor)|(\\-Normal)$', '', out$sample_id)
-            else # the correct and slow way             
+            else # the correct and slow way
               out$individual_id = fh_getcontainers(out$sample_id, id.type = 'Sample', container.type = 'Individual', wkspace = wkspace, verbose = verbose);
             rownames(out) = out$sample_id;
           }
         else
           rownames(out) = out$individual_id;
-        
+
         names(out) = gsub('^sample_id', 'Sample_Id', gsub('^individual_id', 'Individual_Id', names(out)));
         return(out);
       }
@@ -1056,16 +1056,16 @@ get_fh = function(isetname,
       {
         individuals = get_fh(isetname, wkspace = wkspace, type = type, merged = F, verbose = verbose);
         samples = get_fh(isetname, wkspace = wkspace, type = 'Sample', merged = F, verbose = verbose);
-        
+
         sample_fields = setdiff(names(samples), c('Individual_Id'))
-        
+
         samples.tumor = samples[samples$sample_type == "Tumor", ]
         samples.normal = samples[samples$sample_type == "Normal", ];
-        
+
         individuals[, paste('Tumor_', sample_fields, sep = "")] = samples.tumor[match(rownames(individuals), samples.tumor$Individual_Id), sample_fields]
         individuals[, paste('Normal_', sample_fields, sep = "")] =  samples.normal[match(rownames(individuals), samples.normal$Individual_Id), sample_fields]
         return(individuals)
-      }   
+      }
 f  }
 
 
@@ -1075,7 +1075,7 @@ f  }
 #' @description
 #'
 #' (deprecated pre-fiss function)
-#'  
+#'
 #' call to getcontainers firehose API function for a set of entity ids (eg Sample Id)
 #'
 #' id entity type should match the entity ids (ie if sample ids should be "Sample", if individual ids should be "Individual")
@@ -1094,16 +1094,16 @@ fh_getcontainers = function(ids, id.type = 'Sample', container.type = 'Individua
     out = c()
 
     for (i in seq(1, length(ids), FH.STOMACH.SIZE))
-         {           
+         {
            ix = i:min(i+FH.STOMACH.SIZE-1, length(ids))
-           
+
            if (verbose)
              print(sprintf('%s: Getting containers for ids %s:%s', as.character(Sys.time()), min(ix), max(ix)))
 
            url = sprintf(skidb_env('FH.GETCONTAINERS.URL'), id.type, paste(paste('entityNames', ids[ix], sep = '='), collapse = '&'), container.type, wkspace)
            tmp = getURL(url, userpwd = fh.unpw);
            con = textConnection(tmp)
-           tmp.out = readLines(con);    
+           tmp.out = readLines(con);
            names.ix = grep('^#', tmp.out)
            out[ix] = tmp.out[names.ix+1]
            names(out)[ix] = gsub('^#Sample\\: ', '', tmp.out[names.ix])
@@ -1115,15 +1115,15 @@ fh_getcontainers = function(ids, id.type = 'Sample', container.type = 'Individua
 
 
 
-##  _______                                       __        _______   _______   __         
-## |       \                                     |  \      |       \ |       \ |  \        
-## | $$$$$$$\  ______    ______    ______    ____| $$      | $$$$$$$\| $$$$$$$\| $$_______ 
+##  _______                                       __        _______   _______   __
+## |       \                                     |  \      |       \ |       \ |  \
+## | $$$$$$$\  ______    ______    ______    ____| $$      | $$$$$$$\| $$$$$$$\| $$_______
 ## | $$__/ $$ /      \  /      \  |      \  /      $$      | $$  | $$| $$__/ $$ \$/       \
 ## | $$    $$|  $$$$$$\|  $$$$$$\  \$$$$$$\|  $$$$$$$      | $$  | $$| $$    $$  |  $$$$$$$
-## | $$$$$$$\| $$   \$$| $$  | $$ /      $$| $$  | $$      | $$  | $$| $$$$$$$\   \$$    \ 
+## | $$$$$$$\| $$   \$$| $$  | $$ /      $$| $$  | $$      | $$  | $$| $$$$$$$\   \$$    \
 ## | $$__/ $$| $$      | $$__/ $$|  $$$$$$$| $$__| $$      | $$__/ $$| $$__/ $$   _\$$$$$$\
 ## | $$    $$| $$       \$$    $$ \$$    $$ \$$    $$      | $$    $$| $$    $$  |       $$
-##  \$$$$$$$  \$$        \$$$$$$   \$$$$$$$  \$$$$$$$       \$$$$$$$  \$$$$$$$    \$$$$$$$ 
+##  \$$$$$$$  \$$        \$$$$$$   \$$$$$$$  \$$$$$$$       \$$$$$$$  \$$$$$$$    \$$$$$$$
 
 
 
@@ -1140,13 +1140,13 @@ fh_getcontainers = function(ids, id.type = 'Sample', container.type = 'Individua
 #' get_alignment_summaries
 #'
 #' Using firehose table grabs the picard alignment summaries and pulls out samplewise statistics for tumor and normal
-#' including pf_reads, pf_aligned_bases etc. 
+#' including pf_reads, pf_aligned_bases etc.
 #'
 #' Also computes ballpark X coverage for wgs and wes using back of the envelope sizes for each (34MB, 3GB)
 #'
 #' Returns table with Tumor_ and Normal_ columns added at the end
 #' call to getcontainers firehose API function for a set of entity ids (eg Sample Id)
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 get_alignment_summaries = function(iset, wgs = T, short = FALSE)
@@ -1163,7 +1163,7 @@ get_alignment_summaries = function(iset, wgs = T, short = FALSE)
         bam = c(iset$tumor_clean_bam_file_capture, iset$normal_clean_bam_file_capture), stringsAsFactors = F)
       denom =  36557327;
     }
-  
+
   samples$asm = gsub('bam$', 'alignment_summary_metrics', samples$bam)
   asm.sum = NULL;
   for (i in 1:nrow(samples))
@@ -1194,21 +1194,21 @@ get_alignment_summaries = function(iset, wgs = T, short = FALSE)
   iset[, norm.colnames] = asm.sum[iset$normal_sample_id, colnames(asm.sum)]
 
   if (short == TRUE)
-    return(iset[, c('Individual_id', tum.colnames, norm.colnames)])  
+    return(iset[, c('Individual_id', tum.colnames, norm.colnames)])
   else
-    return(iset)    
+    return(iset)
 }
 
 
-##  _______              ______                                                                    _______   _______   __         
-## |       \            /      \                                                                  |       \ |       \ |  \        
-## | $$$$$$$\  ______  |  $$$$$$\ ______    ______    ______   _______    _______   ______        | $$$$$$$\| $$$$$$$\| $$_______ 
+##  _______              ______                                                                    _______   _______   __
+## |       \            /      \                                                                  |       \ |       \ |  \
+## | $$$$$$$\  ______  |  $$$$$$\ ______    ______    ______   _______    _______   ______        | $$$$$$$\| $$$$$$$\| $$_______
 ## | $$__| $$ /      \ | $$_  \$$/      \  /      \  /      \ |       \  /       \ /      \       | $$  | $$| $$__/ $$ \$/       \
 ## | $$    $$|  $$$$$$\| $$ \   |  $$$$$$\|  $$$$$$\|  $$$$$$\| $$$$$$$\|  $$$$$$$|  $$$$$$\      | $$  | $$| $$    $$  |  $$$$$$$
-## | $$$$$$$\| $$    $$| $$$$   | $$    $$| $$   \$$| $$    $$| $$  | $$| $$      | $$    $$      | $$  | $$| $$$$$$$\   \$$    \ 
+## | $$$$$$$\| $$    $$| $$$$   | $$    $$| $$   \$$| $$    $$| $$  | $$| $$      | $$    $$      | $$  | $$| $$$$$$$\   \$$    \
 ## | $$  | $$| $$$$$$$$| $$     | $$$$$$$$| $$      | $$$$$$$$| $$  | $$| $$_____ | $$$$$$$$      | $$__/ $$| $$__/ $$   _\$$$$$$\
 ## | $$  | $$ \$$     \| $$      \$$     \| $$       \$$     \| $$  | $$ \$$     \ \$$     \      | $$    $$| $$    $$  |       $$
-##  \$$   \$$  \$$$$$$$ \$$       \$$$$$$$ \$$        \$$$$$$$ \$$   \$$  \$$$$$$$  \$$$$$$$       \$$$$$$$  \$$$$$$$    \$$$$$$$ 
+##  \$$   \$$  \$$$$$$$ \$$       \$$$$$$$ \$$        \$$$$$$$ \$$   \$$  \$$$$$$$  \$$$$$$$       \$$$$$$$  \$$$$$$$    \$$$$$$$
 
 
 #' @name get_alignment_summaries
@@ -1219,7 +1219,7 @@ get_alignment_summaries = function(iset, wgs = T, short = FALSE)
 #' process_uniprot_ft
 #'
 #' Takes uniprot data file and outputs a "seg" file style data frame / txt of protein features file with columns $ID, $begin, $end,  $feature.name, $feature.description
-#' 
+#'
 #' @author = functioun Marcin Imielinski
 #' @export
 process_uniprot_ft = function(out.file = skidb_env('UNIPROT.FT'), uniprot.dat = skidb_env('UNIPROT.DAT'))
@@ -1232,13 +1232,13 @@ process_uniprot_ft = function(out.file = skidb_env('UNIPROT.FT'), uniprot.dat = 
     begin = end = rep(-1, numfeatures)
 
     #get field widths
-    p = pipe(paste('grep -P "^((ID))"', uniprot.dat)); 
+    p = pipe(paste('grep -P "^((ID))"', uniprot.dat));
     open(p);
     fw.prot = get.field.widths(readLines(p,1));
     close(p)
 
     #get exact field widths for (bizarre doubly horizontally justified) fixed width protein feature row
-    p = pipe(paste('grep -P "^((FT))"', uniprot.dat)); 
+    p = pipe(paste('grep -P "^((FT))"', uniprot.dat));
     open(p);
     line = paste(readLines(p,1), ' ', sep ="");
     match = sort(c(as.numeric(gregexpr('\\w+[ ]+', line, perl = T)[[1]]), as.numeric(gregexpr('\\s+\\w+', line, perl = T)[[1]]), nchar(line)))
@@ -1248,7 +1248,7 @@ process_uniprot_ft = function(out.file = skidb_env('UNIPROT.FT'), uniprot.dat = 
     p = pipe(paste('grep -P "^((FT)|(ID))"', uniprot.dat)); # read only FT and ID lines of uniprot file
     open(p)
     k = 0;
-    current.protein = NA;    
+    current.protein = NA;
     line = readLines(p,1)
     while (length(line)==1)
       {
@@ -1259,22 +1259,22 @@ process_uniprot_ft = function(out.file = skidb_env('UNIPROT.FT'), uniprot.dat = 
             current.protein = substr(line, fw.prot[1]+1, fw.prot[1]+fw.prot[2])
             ID[k] = current.protein;
             fields = strsplit.fwf(line, fw.prot)
-            feature.name.and.begin[k] = gsub('.*(\\d+) AA\\.', 'ProteinBoundary 1', line);  
+            feature.name.and.begin[k] = gsub('.*(\\d+) AA\\.', 'ProteinBoundary 1', line);
             feature.description[k] = '';
             end[k] = gsub('.* (\\d+) AA\\.', '\\1', line)
           }
-        else 
+        else
           {
             ID[k] = current.protein;
             fields = strsplit.fwf(line, fw.feature)
-            feature.name.and.begin[k] = fields[2];  # pt 2 of hack to deal with wierd fixed width left vs right justified uniprot text file format 
+            feature.name.and.begin[k] = fields[2];  # pt 2 of hack to deal with wierd fixed width left vs right justified uniprot text file format
             feature.description[k] = fields[4];
             end[k] = fields[3];
-          }        
+          }
         line = readLines(p,1)
       }
 
-    tmp = strsplit(gsub('\\s+', '\t', feature.name.and.begin, perl = T), '\t') # pt 3 of hack to deal with wierd fixed width left vs right justified uniprot text file format 
+    tmp = strsplit(gsub('\\s+', '\t', feature.name.and.begin, perl = T), '\t') # pt 3 of hack to deal with wierd fixed width left vs right justified uniprot text file format
     out = data.frame(ID = trim(ID), feature.name = trim(sapply(tmp, function(x) x[[1]])), feature.description = trim(feature.description),
       begin = as.numeric(sapply(tmp, function(x) if (length(x)>1) x[[2]] else NA )), end = as.numeric(end), stringsAsFactors = F)
 
@@ -1289,7 +1289,7 @@ process_uniprot_ft = function(out.file = skidb_env('UNIPROT.FT'), uniprot.dat = 
     # match up feature_names with feature_tpes
     up.keys = read.delim(skidb_env('UNIPROT.FEATUREKEYS'), strings = F);
     out$feature.type = up.keys$feature_type[match(out$feature.name, up.keys$feature)]
-        
+
     if (!is.null(out.file))
       write.table(out, out.file, sep = "\t", row.names = F, quote = F)
 
@@ -1301,8 +1301,8 @@ process_uniprot_ft = function(out.file = skidb_env('UNIPROT.FT'), uniprot.dat = 
 #'
 #' @description
 #'
-#' Takes uniprot data file and outputs a two column table mapping id's to accession numbers 
-#' 
+#' Takes uniprot data file and outputs a two column table mapping id's to accession numbers
+#'
 #' @author Marcin Imielinski
 #' @export
 process_uniprot_acmap = function(out.file = skidb_env('UNIPROT.ACMAP'), uniprot.dat = skidb_env('UNIPROT.DAT'))
@@ -1311,42 +1311,42 @@ process_uniprot_acmap = function(out.file = skidb_env('UNIPROT.ACMAP'), uniprot.
     numids = as.numeric(readLines(p)); # count up number of unique accession id's (to preallocate)
     close(p)
 
-    ## get field widths for efficient parsing later on 
-    p = pipe(paste('grep -P "^((ID))"', uniprot.dat)); 
+    ## get field widths for efficient parsing later on
+    p = pipe(paste('grep -P "^((ID))"', uniprot.dat));
     open(p);
     fw.id = get.field.widths(readLines(p,1));
     close(p)
 
-    p = pipe(paste('grep -P "^((AC))"', uniprot.dat)); 
+    p = pipe(paste('grep -P "^((AC))"', uniprot.dat));
     open(p);
     fw.ac = get.field.widths(readLines(p,1));
     close(p)
 
     ID = AC = rep("", numids); #preallocate output table columns (for some reason R is much faster at updating big vectors than big data frames)
-    
+
     # iterate through file
     p = pipe(paste('grep -P "^((AC)|(ID))"', uniprot.dat)); # read only AC and ID lines of uniprot file
     open(p)
     k = 1;
-    current.protein = NA;    
+    current.protein = NA;
     line = readLines(p,1)
     while (length(line)==1)
       {
         if (substr(line, 1, 2) == "ID")
             current.protein = substr(line, fw.id[1]+1, fw.id[1]+fw.id[2])
-        else 
+        else
           {
             ac = strsplit(substr(line, fw.ac[1],nchar(line)), ';')[[1]]
             these.ind = k:(k+length(ac)-1);
             ID[these.ind] = current.protein;
             AC[these.ind] = ac;
             k = k+length(ac);
-          }        
+          }
         line = readLines(p,1)
       }
 
     out = data.frame(ID = trim(ID), AC = trim(AC), stringsAsFactors = F)
-        
+
     if (!is.null(out.file))
       write.table(out, out.file, sep = "\t", row.names = F, quote = F)
 
@@ -1357,22 +1357,22 @@ process_uniprot_acmap = function(out.file = skidb_env('UNIPROT.ACMAP'), uniprot.
 #' @title process_pfam
 #'
 #' @description
-#' 
+#'
 #' Given pfam msa file (stockholm format)
 #' output data as list of character matrices with rownames corresponding to sequence data
 #' and list names corresponding to pfam domain IDs.
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 process_pfam= function(pfam.file = skidb_env('PFAM.HUMAN'), out.file = skidb_env('PFAM.HUMAN.RDS'), lim = Inf)
   {
     pali = read_stockholm(pfam.file);
-    
+
     ix = sapply(pali, function(x) length(rownames(x)))>0
     if (any(!ix))
       warning(paste('Some pfam entries without rownames:', paste(names(pali)[!ix], collapse = ', ')))
-    
-    pali = pali[which(ix)]  
+
+    pali = pali[which(ix)]
     l.ix = unlist(lapply(1:length(pali), function(x) rep(x, nrow(pali[[x]]))))
     pali.name = names(pali)[l.ix]
     tmp.txt = unlist(lapply(pali, function(x) trim(rownames(x))))
@@ -1392,7 +1392,7 @@ process_pfam= function(pfam.file = skidb_env('PFAM.HUMAN'), out.file = skidb_env
     up2pf$Uniprot = up2pf$UniprotID
     up2pf$Pfam = up2pf$fullacc
     out = list(grl = grl, pali = pali, up2pf = up2pf[, c('Uniprot', 'Pfam', 'desc')])
-    
+
     saveRDS(out, out.file)
   }
 
@@ -1402,13 +1402,13 @@ process_pfam= function(pfam.file = skidb_env('PFAM.HUMAN'), out.file = skidb_env
 #' @description
 #'
 #' processes pfam fasta from pfam fasta and main pfam file
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 process_pfam_meta = function(pfam.fa.file = skidb_env('PFAM.FA'), outfile = skidb_env('PFAM.HUMAN.META.RDS'), verbose = T)
 {
   if (verbose)
-    cat('Reading pfam fasta\n')  
+    cat('Reading pfam fasta\n')
 
   if (verbose)
     cat('parsing pfam main\n')
@@ -1417,7 +1417,7 @@ process_pfam_meta = function(pfam.fa.file = skidb_env('PFAM.FA'), outfile = skid
   pfam.names = sort(trim(structure(unlist(bla), names = unlist(lapply(1:length(pfam), function(x) rep(names(pfam)[x], length(bla[[x]])))))))
   pfam.names = pfam.names[!duplicated(pfam.names)]
   tmp = strsplit(pfam.names, '[ \\/\\]' )
-  
+
   pfam.meta = as.data.frame(t(matrix(unlist(tmp), ncol = length(tmp))))
   pfam.meta[,3] = sapply(strsplit(as.character(pfam.meta[,2]), '-'), function(x) x[[2]])
   pfam.meta[,2] = sapply(strsplit(as.character(pfam.meta[,2]), '-'), function(x) x[[1]])
@@ -1426,7 +1426,7 @@ process_pfam_meta = function(pfam.fa.file = skidb_env('PFAM.FA'), outfile = skid
   names(pfam.meta) = c('UniprotID', 'begin', 'end', 'fullacc', 'hmmacc')
 
   if (verbose)
-    cat('parsing pfam fasta\n')  
+    cat('parsing pfam fasta\n')
   pfam.fa = readDNAStringSet('~/links/tcga_marcin/DB/Pfam/Pfam-A.fasta')
   pfam.fa = pfam.fa[grep('HUMAN', names(pfam.fa))]
   tmp = strsplit(names(pfam.fa), '[ \\/\\]' )
@@ -1435,8 +1435,8 @@ process_pfam_meta = function(pfam.fa.file = skidb_env('PFAM.FA'), outfile = skid
   pfam.meta2[,2] = sapply(strsplit(as.character(pfam.meta2[,2]), '-'), function(x) x[[1]])
   pfam.meta2[,5] = sapply(strsplit(as.character(pfam.meta2[,4]), '[;\\.]'), function(x) x[[1]])
   names(pfam.meta) = c('UniprotID', 'begin', 'end', 'desc', 'hmmacc')
-  
-  pfam.meta$desc = pfam.meta2$desc[match(pfam.meta$hmmacc, pfam.meta2$hmmacc)]      
+
+  pfam.meta$desc = pfam.meta2$desc[match(pfam.meta$hmmacc, pfam.meta2$hmmacc)]
   saveRDS(pfam.meta, outfile)
 }
 
@@ -1447,8 +1447,8 @@ process_pfam_meta = function(pfam.fa.file = skidb_env('PFAM.FA'), outfile = skid
 #' @description
 #'
 #' Reads Pfam stockholm format into a list of matrices named by each record accession
-#' Each row of each matrix comprises a sequence alignment. 
-#' 
+#' Each row of each matrix comprises a sequence alignment.
+#'
 #' @author Marcin Imielinski
 #' @export
 read_stockholm = function(pfam.file, lim = Inf)
@@ -1458,11 +1458,11 @@ read_stockholm = function(pfam.file, lim = Inf)
     close(p)
 
     numdom = pmin(lim, numdom);
-    
+
     ## scan once to pre-allocate matrices
     f = file(pfam.file, 'r')
     line = readLines(f,1)
-    
+
     dom.dim = matrix(0, ncol = 2, nrow = numdom);
     text.pos = matrix(0, ncol = 2, nrow = numdom);
     dom.names = rep('', numdom);
@@ -1493,20 +1493,20 @@ read_stockholm = function(pfam.file, lim = Inf)
               waiting = FALSE;
             }
           dom.dim[i, 1] = dom.dim[i, 1] + 1;
-        }        
+        }
         last = line;
-        line = readLines(f, 1);        
+        line = readLines(f, 1);
       }
     close(f)
 
     # pre allocate matrices
     out = lapply(1:numdom, function(x) matrix(NA, nrow = dom.dim[x, 1], ncol = dom.dim[x, 2]))
     names(out) = dom.names;
-    
+
     # start over
     f = file(pfam.file, 'r')
     line = readLines(f,1)
-    
+
     i = 0;
     waiting = FALSE;
     while (length(line)==1 & i <= lim)
@@ -1515,7 +1515,7 @@ read_stockholm = function(pfam.file, lim = Inf)
           {
             if ((i %% 1000)==0)
               cat(sprintf('Populated %s Pfam records ..\n', i))
-            
+
             i = i+1;
             j = 1;
 
@@ -1530,13 +1530,13 @@ read_stockholm = function(pfam.file, lim = Inf)
           seq.names[j] = substr(line, 1, text.pos[i,2]-1)
           out[[i]][j, ] = strsplit(substr(line, text.pos[i,2], nchar(line)), '')[[1]]
           j = j+1;
-        }        
-        line = readLines(f, 1);        
+        }
+        line = readLines(f, 1);
       }
     close(f)
 
     rownames(out[[length(out)]]) = seq.names
-    
+
     out = out[which(sapply(out, ncol)!=0)]
     return(out)
   }
@@ -1547,7 +1547,7 @@ read_stockholm = function(pfam.file, lim = Inf)
 #'
 #' @description
 #'
-#' Takes uniprot data file and outputs a two column table mapping id's to refseq numbers 
+#' Takes uniprot data file and outputs a two column table mapping id's to refseq numbers
 #'
 #' @author Marcin Imielinski
 #' @export
@@ -1556,31 +1556,31 @@ process_uniprot_rs = function(out.file = skidb_env('UNIPROT.RS'), uniprot.dat = 
     p = pipe(paste('grep -P "^DR\\s+RefSeq"', uniprot.dat, ' | grep -Po ";" | wc -l'))
     numids = as.numeric(readLines(p)); # count up number of unique accession id's (to preallocate)
     close(p)
-    
-    ## get field widths for efficient parsing later on 
-    p = pipe(paste('grep -P "^((ID))"', uniprot.dat)); 
+
+    ## get field widths for efficient parsing later on
+    p = pipe(paste('grep -P "^((ID))"', uniprot.dat));
     open(p);
     fw.id = get.field.widths(readLines(p,1));
     close(p)
 
-    p = pipe(paste('grep -P "^((DR\\s+RefSeq;))"', uniprot.dat)); 
+    p = pipe(paste('grep -P "^((DR\\s+RefSeq;))"', uniprot.dat));
     open(p);
     fw.rs = get.field.widths(readLines(p,1));
     close(p)
 
     ID = RS = rep("", numids); #preallocate output table columns (for some reason R is much faster at updating big vectors than big data frames)
-    
+
     # iterate through file
     p = pipe(paste('grep -P "^((DR\\s+RefSeq)|(ID))"', uniprot.dat)); # read only DR RefSeq  and ID lines of uniprot file
     open(p)
     k = 1;
-    current.protein = NA;    
+    current.protein = NA;
     line = readLines(p,1)
     while (length(line)==1)
       {
         if (substr(line, 1, 2) == "ID")
             current.protein = substr(line, fw.id[1]+1, fw.id[1]+fw.id[2])
-        else 
+        else
           {
             rs = strsplit(substr(line, fw.rs[1],nchar(line)-1), ';')[[1]]
             rs = rs[2:length(rs)];
@@ -1588,12 +1588,12 @@ process_uniprot_rs = function(out.file = skidb_env('UNIPROT.RS'), uniprot.dat = 
             ID[these.ind] = current.protein;
             RS[these.ind] = rs;
             k = k+length(rs);
-          }        
+          }
         line = readLines(p,1)
       }
 
     out = data.frame(ID = trim(ID), RS = trim(RS), stringsAsFactors = F)
-        
+
     if (!is.null(out.file))
       write.table(out, out.file, sep = "\t", row.names = F, quote = F)
 
@@ -1624,9 +1624,9 @@ read_uniprot_ft = function(granges = F, grl = T)
 
       if (grl)
         up.ft = split(up.ft, seqnames(up.ft))
-      
+
     }
-      
+
   return(up.ft)
 }
 
@@ -1664,7 +1664,7 @@ process_repeatmasker = function(infile = skidb_env('REPEATMASKER.HG19'), outfile
   values(out) = tmp[, c('repName', 'repClass', 'repFamily', 'swScore', 'id')]
   saveRDS(out, outfile)
 }
-  
+
 
 #' @name read_pfam_meta
 #' @title read_pfam_meta
@@ -1680,11 +1680,11 @@ read_pfam_meta = function(gr = F)
 
   if (gr)
     {
-      out = GRanges(pfam.meta$UniprotID, IRanges(as.numeric(pfam.meta$begin), as.numeric(pfam.meta$end)), desc = pfam.meta$desc, hmmacc = pfam.meta$hmmacc, fullacc = pfam.meta$fullacc);      
+      out = GRanges(pfam.meta$UniprotID, IRanges(as.numeric(pfam.meta$begin), as.numeric(pfam.meta$end)), desc = pfam.meta$desc, hmmacc = pfam.meta$hmmacc, fullacc = pfam.meta$fullacc);
       out = gr.fix(out, uniprot_seqinfo(), drop = T)
     }
   else
-    return(pfam.meta) 
+    return(pfam.meta)
 }
 
 
@@ -1693,14 +1693,14 @@ read_pfam_meta = function(gr = F)
 #'
 #' @description
 #'
-#' reads uniprot map from file 
+#' reads uniprot map from file
 #'
 #' @author Marcin Imielinski
 read_uniprot_map = function(mapto = NULL)
 {
   if (is.null(mapto))
     stop(sprintf('mapto argument options are:\n %s', paste(gsub('map_Uniprot2(.*)\\.txt$', '\\1', dir(skidb_env('UNIPROT.ROOT'), 'map_Uniprot2')), collapse = ", ")))
-  
+
   return(read.delim(sprintf('%s/map_Uniprot2%s.txt', skidb_env('UNIPROT.ROOT'), mapto), strings = F))
 }
 
@@ -1709,7 +1709,7 @@ read_uniprot_map = function(mapto = NULL)
 #'
 #' @description
 #'
-#' reads bionano human genome into GRanges format 
+#' reads bionano human genome into GRanges format
 #'
 #' @author Marcin Imielinski
 #' @export
@@ -1718,17 +1718,17 @@ read_hg_bionano = function(fn = CMAP.HG19)
     cmap = .read_bionano(fn)
 
     cmap$CMapId = names(hg_seqlengths())[cmap$CMapId]
-    cmap = cmap[!is.na(cmap$CMapId), ]    
+    cmap = cmap[!is.na(cmap$CMapId), ]
     out = GRanges(cmap$CMapId, IRanges(cmap$Position, width = 1),  strand = '*', seqlengths = hg_seqlengths())
     values(out) = cmap
-    return(out)        
+    return(out)
   }
 
 #' @name read_lumpy
 #' @title read_lumpy
 #'
 #' @description
-#' 
+#'
 #' reads LUMPY sv bedpe format, returning rearrangement junctions as GRangesList
 #' with strands pointing AWAY from junction
 #'
@@ -1754,25 +1754,25 @@ read_lumpy = function(file, sl = hg_seqlengths(), samples = c('tumor', 'normal')
             if (i<=ncol(dat))
                 df[, this.col] = dat[,i]
           }
-      }        
-                  
+      }
+
     new.sn = setdiff(c(df$chr1, df$chr2), names(sl))
     if (length(new.sn)!=0)
       sl[new.sn] = NA
-    
+
     ra1 = GRanges(df$chr1, IRanges(df$start1, df$end1), strand = ifelse(df$str1=='+', '-', '+'), seqlengths = sl)
     ra2 = GRanges(df$chr2, IRanges(df$start2, df$end2), strand = ifelse(df$str2=='+', '-', '+'), seqlengths = sl)
 
     out = grl.pivot(GRangesList(ra1, ra2))
     values(out) = df
-    
+
   }
 
 #' @name read_uniprot_seqinfo
 #' @title read_uniprot_seqinfo
 #'
 #' @description
-#' 
+#'
 #' extracts seqinfo from uniprot fa file
 #'
 #' @author Marcin Imielinski
@@ -1801,7 +1801,7 @@ read_uniprot_fa = function(trim.names = T #if false will output full identifiers
 
   if (trim.names)
     names(out) = gsub('^[^\\|]+\\|[^\\|]+\\|(\\w+)+ .*$', '\\1', names(out))
-    
+
   return(out)
 }
 
@@ -1823,7 +1823,7 @@ read_rsem = function(file)
         out$gene_sym = sapply(strsplit(out$gene_id, '\\|'), function(x) x[[1]])
         out$gene_id = sapply(strsplit(out$gene_id, '\\|'), function(x) x[[2]])
       }
-    
+
     rownames(out) = NULL
 
     return(out)
@@ -1834,7 +1834,7 @@ read_rsem = function(file)
 #'
 #' @description
 #'
-#' reads snp data given array definition file in either rds data table format 
+#' reads snp data given array definition file in either rds data table format
 #' or txt format
 #'
 #' returns GRanges or list with $gr and $td for GRanges and length(2) trackData of total and allelic copy number
@@ -1848,8 +1848,8 @@ read_snpdata = function(file, markermap = skidb_env('SNP.MARKER.MAP'), td = FALS
     if (!is.data.table(markermap))
         snpmarkers = tryCatch(readRDS(markermap), error = function(e) NULL)
     else
-        snpmarkers = markermap    
-    
+        snpmarkers = markermap
+
     if (is.null(snpmarkers))
         {
             warning("Reloading markermap file from scratch")
@@ -1858,58 +1858,58 @@ read_snpdata = function(file, markermap = skidb_env('SNP.MARKER.MAP'), td = FALS
             setkey(snpmarkers, name)
         }
 
-    snpdata = fread(file, skip = 1);  
+    snpdata = fread(file, skip = 1);
     setnames(snpdata, c("name", "A", "B"))
     snpdata[, ":="(chr = snpmarkers[name, chr], pos = snpmarkers[name, pos])]
     gr = seg2gr(snpdata)
     gr$high = pmax(gr$A, gr$B); gr$low = pmin(gr$A, gr$B); gr$total = gr$A + gr$B;
-    
-    if (td) ## return both trackData and GRanges object 
+
+    if (td) ## return both trackData and GRanges object
         {
             gr.low = gr.high = gr[, c()];
             gr.low$signal = gr$low;
             gr.high$signal = gr$high;
             gr.low$type = "low";
             gr.high$type = "high";
-            gr.allele = c(gr.low, gr.high);  
+            gr.allele = c(gr.low, gr.high);
             td.allele = trackData(gr.allele, y.field = 'signal', colormaps = list(type = c(high = "red", low = "blue")));
             td.total = trackData(gr, y.field = 'total')
             td = c(td.allele, td.total)
             return(list(gr = gr, td = td))
         }
     else
-        return(gr)       
+        return(gr)
 }
-                 
+
 
 #' @name read_refgene
 #' @title read_refgene
 #'
 #' @description
-#' 
+#'
 #' if exons = T, returns an expanded data frame with 1 row per exon
 #' if uniprot = T, maps to uniprot annotations, and limits only to those refseq genes that map to at least
 #' one uniprot record
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
-read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, chr.numeric = F, chr = F, uniprot = T, ccds = T, force.make = F)  
+read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, chr.numeric = F, chr = F, uniprot = T, ccds = T, force.make = F)
 {
   if (!force.make & hg19) ## cached versions
       {
           if (granges & !exons & file.exists(skidb_env('REFGENE.FILE.HG19.GR')))
-              return(readRDS(skidb_env('REFGENE.FILE.HG19.GR')))   
+              return(readRDS(skidb_env('REFGENE.FILE.HG19.GR')))
           if (grl & !cds &  file.exists(skidb_env('REFGENE.FILE.HG19.GRL')))
               return(readRDS(skidb_env('REFGENE.FILE.HG19.GRL')))
           if (grl & cds &  file.exists(skidb_env('GENCODE.FILE.HG19.CDS.GRL')))
               return(readRDS(skidb_env('GENCODE.FILE.HG19.CDS.GRL')))
       }
-  
+
   if (hg19)
       rg = read.delim(REFGENE.FILE.HG19, row.names=NULL, header=0, strings = F)
   else
       rg = read.delim(skidb_env('REFGENE.FILE.HG18'), row.names=NULL, header=0, strings = F)
-  
+
   colnames(rg) = c("num", "NM_id", "chr", "strand", "s1", "e1", "s2", "e2", "n_exons", "exon_starts", "exon_ends", "num2", "gene_sym", "cmpl1", "cmpl2", "exon_frame")
   if (chr.numeric)
     {
@@ -1923,7 +1923,7 @@ read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, c
 
   if (!chr)
     rg$chr = gsub('chr', '', rg$chr)
-  
+
   rg$start = rg$s1+1; ## we don't like 0 based coordinates for ranges
   rg$end = rg$e1;
   rg$transcript.length = rg.length(rg)
@@ -1948,22 +1948,22 @@ read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, c
       ccds.map$nid = gsub('\\..*', '', ccds.map$nucleotide_ID)
       rg$CCDS = ccds.map[match(rg$NM_id, ccds.map$nid), ]$X.ccds
     }
-    
+
   if (grl | exons | cds)
     {
       rg$uid = 1:nrow(rg)
       rg = rg2exons(rg, cds = cds);
     }
-  
+
   if (granges | grl)
     {
       tmp = GRanges(rg$chr, IRanges(rg$start, rg$end), strand = rg$strand, seqlengths = hg_seqlengths(include.junk = T, chr = chr, hg19 = hg19))
       values(tmp) = rg[, setdiff(names(rg), c('chr', 'start', 'end', 'strand'))]
       rg = tmp;
-      
+
       if (!exons & !cds)
         saveRDS(rg, skidb_env('REFGENE.FILE.HG19.GR'))
-      
+
       if (grl)
         {
           # separate tx.level and exon level attributes
@@ -1976,7 +1976,7 @@ read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, c
           tx.vals = tx.vals[!duplicated(tx.vals$uid), ]
           values(rg) = values(rg)[, c('uid', setdiff(names(values(rg)), tx.cols))]
           ix = order(c(-1, 1)[1+as.numeric(strand(rg)=='+')] * start(rg))
-          rg = split(rg[ix], rg$uid[ix])         
+          rg = split(rg[ix], rg$uid[ix])
           values(rg) = tx.vals[match(names(rg), tx.vals$uid),
                   setdiff(tx.cols, c('exon_starts', 'exon_ends', 'exon_frame', 'num', 'chr', 'pos1', 'pos2'))]
           values(rg)$chr = tx.chr[values(rg)$uid]
@@ -1984,14 +1984,14 @@ read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, c
           values(rg)$s1 = values(rg)$s1+1 ## fix 0 based coordinates for output, otherwise these will be confusing downstream
           values(rg)$s2 = values(rg)$s2+1
           values(rg)$uid = NULL;
-               
+
           if (!cds)
             saveRDS(rg, skidb_env('REFGENE.FILE.HG19.GRL'))
           else
             saveRDS(rg, skidb_env('REFGENE.FILE.HG19.CDS.GRL'))
         }
     }
-  
+
   return(rg)
 }
 
@@ -2001,7 +2001,7 @@ read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, c
 #' @description
 #'
 #' reads ensembl transcripts into genomic ranges
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_ensembl = function(
@@ -2017,9 +2017,9 @@ read_ensembl = function(
 
     if (any(nchar(types)>0))
       e.gene = e.gene[e.gene$Gene.Biotype %in% types | e.gene$Transcript.Biotype %in% types, ]
-    
+
     if (transcript | grl | flat)
-      { 
+      {
         if (grl | flat)
           {
             e.tx = read.delim(skidb_env('ENSEMBL.TX'), strings = F, header = F)
@@ -2067,7 +2067,7 @@ read_ensembl = function(
       }
 
     out = gr.fix(out, gr.sub(seqinfo2gr(read_hg()), 'chr', ''))
-    
+
     return(out)
   }
 
@@ -2078,7 +2078,7 @@ read_ensembl = function(
 #' @description
 #'
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_kg = function(hg19 = T, chr = F, gr = F,
@@ -2099,7 +2099,7 @@ read_kg = function(hg19 = T, chr = F, gr = F,
 
   names(kg)[1] = 'name';
   names(kg2rg) = c('name', 'NM_id')
-  
+
   kg = merge(kg, kg2rg, by = 'name', all.x = T);
   kg = merge(kg, rg, by = 'NM_id', all.x = T);
 
@@ -2127,8 +2127,8 @@ read_kg = function(hg19 = T, chr = F, gr = F,
       values(kg) = val;
       names(kg) = val$name;
     }
-    
-  return(kg) 
+
+  return(kg)
 }
 
 #' @name process_gaf
@@ -2149,7 +2149,7 @@ process_gaf= function(gaf.file = skidb_env('GAF.SOURCE'), verbose = T)
 
     if (verbose)
       print(sprintf('Writing split gaf subtables (%s) as rds files to central directory (%s)', paste(names(gafs), collapse = ", "), skidb_env('GAF.DIR')))
-    
+
 #    lapply(names(gafs), function(x) saveRDS(gafs[[x]], paste(skidb_env('GAF.DIR'), "/", x, ".rds", sep = "")))
 
     if (verbose)
@@ -2167,11 +2167,11 @@ process_gaf= function(gaf.file = skidb_env('GAF.SOURCE'), verbose = T)
 
     names(grl) = gafs$transcript[gafs$transcript$CompositeType == 'genome', ]$FeatureID
     values(grl)$gene = gsub('\\|.*', '', gafs$transcript[gafs$transcript$CompositeType == 'genome', ]$Gene)
-    
+
     saveRDS(grl, paste(skidb_env('GAF.DIR'), "/transcript.gr.rds", sep = ""))
 
     if (verbose)
-      print('done')    
+      print('done')
   }
 
 
@@ -2182,15 +2182,15 @@ process_gaf= function(gaf.file = skidb_env('GAF.SOURCE'), verbose = T)
 #'
 #' reads GENCODE file dump from .rds of GRanges.
 #'
-#' If that file doesn't exist 
-#' 
+#' If that file doesn't exist
+#'
 #' @author Marcin Imielinski
 #' @export
 read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE.HG19.GR'), fn = GENCODE.FILE.HG19)
     {
         TYPES = c('exon', 'gene', 'transcript', 'CDS')
         BY = c('transcript_id', 'gene_id')
-        
+
         if (file.exists(fn.rds))
             ge = readRDS(fn.rds)
         else
@@ -2200,7 +2200,7 @@ read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE
                 ge = import.ucsc(GENCODE.FILE.HG19)
                 saveRDS(ge, skidb_env('GENCODE.FILE.HG19.GR'))
             }
-        
+
         if (!is.null(type))
             {
                 type = grep(type, TYPES, value = TRUE, ignore.case = TRUE)[1]
@@ -2209,18 +2209,18 @@ read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE
                 tx = ge[ge$type %in% 'transcript']
                 ge = ge[ge$type %in% type]
             }
-                
+
         if (!is.null(by))
-            {                
+            {
                 by = grep(by, BY, value = TRUE, ignore.case = TRUE)[1]
-                
-                if (!(by %in% BY))                
+
+                if (!(by %in% BY))
                     stop(sprintf('Type should be in %s', paste(TYPES, collapse = ',')))
 
                 if (by == 'transcript_id')
                     return(.gencode_transcript_split(ge, tx))
                 else
-                    return(split(ge, values(gene)[, by]))                
+                    return(split(ge, values(gene)[, by]))
             }
         return(ge)
     }
@@ -2233,34 +2233,34 @@ read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE
 #' @description
 #'
 #' splits gencode gr into transcript, taking care of some junky issues in the meantime
-#' 
+#'
 #' @author Marcin Imielinski
 .gencode_transcript_split = function(gr, tx)
     {
         require(Hmisc)
-#        gr.span = seg2gr(grdt(gr)[, list(seqnames = seqnames[1], start = min(start), end = max(end), strand = strand[1], transcript_name = transcript_name[1], gene_name = gene_name[1], gene_status = gene_status[1], gene_type = gene_type[1]), by = transcript_id], seqlengths = seqlengths(gr))        
+#        gr.span = seg2gr(grdt(gr)[, list(seqnames = seqnames[1], start = min(start), end = max(end), strand = strand[1], transcript_name = transcript_name[1], gene_name = gene_name[1], gene_status = gene_status[1], gene_type = gene_type[1]), by = transcript_id], seqlengths = seqlengths(gr))
 
         ## keep.ix = !is.na(values(gr.span)[, by.og])
         ## gr.span = gr.span[keep.ix,]
-        ## tmp.id = paste(values(gr.span)[, by.og], seqnames(gr.span), sep = '_')        
-        ## if (any(ix <- duplicated(values(gr.span)[, by.og])))      
+        ## tmp.id = paste(values(gr.span)[, by.og], seqnames(gr.span), sep = '_')
+        ## if (any(ix <- duplicated(values(gr.span)[, by.og])))
         ##     values(gr.span)[, by.og][ix] = tmp.id[ix]
-                           
+
         ## gr = gr[!is.na(values(gr)[, by.og])]
-        ## tmp.id.gr = paste(values(gr)[, by.og], seqnames(gr), sep = '_')        
+        ## tmp.id.gr = paste(values(gr)[, by.og], seqnames(gr), sep = '_')
         ## gr$transcript_id = values(gr.span)[, by.og][match(tmp.id.gr, tmp.id)]
-        
+
         gr$start.local = grdt(gr)[, id := 1:length(gr)][, tmp.st := 1+c(0, cumsum(width)[-length(width)]), by = transcript_id][, keyby = id][, tmp.st]
-        
+
         gr$end.local = gr$start.local + width(gr) -1
-        grl = split(gr, gr$transcript_id)        
+        grl = split(gr, gr$transcript_id)
         tmp.val = as.data.frame(tx)[match(names(grl), tx$transcript_id), ]
         rownames(tmp.val) = tmp.val$transcript_id
         ## rownames(tmp.val) = tmp.val$splitkey
         ## names(tmp.val)[match('splitkey', names(tmp.val))] = by
         names(tmp.val) = capitalize(names(tmp.val))
         values(grl) = tmp.val
-        return(grl)                  
+        return(grl)
     }
 
 
@@ -2270,11 +2270,11 @@ read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE
 #' @description
 #'
 #' reads any one of the gaf rds files stored in skidb_env('GAF.DIR') by process_gaf
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_gaf = function(type = 'gene', gr = F  # choices include  "transcript", "componentExon", "compositeExon", "junction", "miRNA", "pre-miRNA"
-  ) 
+  )
   {
     if (gr)
       {
@@ -2284,10 +2284,10 @@ read_gaf = function(type = 'gene', gr = F  # choices include  "transcript", "com
         else
           stop(sprintf('GRanges only supported for: %s', paste(LEGAL.TYPES, collapse = ', ')))
       }
-    
+
     out = readRDS(paste(skidb_env('GAF.DIR'), '/', type, '.rds', sep = ""))
     out$Gene = sapply(strsplit(out$Gene, '\\|'), function(x) if (length(x)>0) x[[1]] else NA)
-    
+
     if (type == 'gene')
       {
         rownames(out) = out$FeatureID;
@@ -2298,7 +2298,7 @@ read_gaf = function(type = 'gene', gr = F  # choices include  "transcript", "com
         out = cbind(out, gene.info);
         close(con)
       }
-       
+
     return(out)
   }
 
@@ -2308,7 +2308,7 @@ read_gaf = function(type = 'gene', gr = F  # choices include  "transcript", "com
 #' @description
 #'
 #' returns GRanges of genome coordinates of gaf features or gChain mapping feature coordinates to composite coordinates
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_gaf = function(file = 'gene', ## can be a path or also a keyword corresponding to any gaf feature eg gene, componentExon, junction, in which case the directory is queried for the appropriate file
@@ -2316,7 +2316,7 @@ read_gaf = function(file = 'gene', ## can be a path or also a keyword correspond
   {
     GAF.COLNAMES = c('EntryNumber', 'FeatureID', 'FeatureType', 'FeatureDBSource', 'FeatureDBVersion', 'FeatureDBDate', 'FeatureSeqFileName', 'Composite', 'CompositeType', 'CompositeTypeDBSource', 'CompositeDBVersion', 'CompositeDBDate', 'AlignmentType', 'FeatureCoordinates', 'CompositeCoordinates', 'Gene', 'GeneLocus', 'FeatureAliases', 'FeatureInfo'); mirna.genome = read.delim('~/DB/GAF/miRNA.genome.v3_0.gaf', strings = F, header = F, col.names = GAF.COLNAMES)
     mirna.genome = read.delim(filep, strings = F, header = F, col.names = GAF.COLNAMES)
-    return(mirna.genome)    
+    return(mirna.genome)
   }
 
 #' @name read_ccds_fa
@@ -2325,7 +2325,7 @@ read_gaf = function(file = 'gene', ## can be a path or also a keyword correspond
 #' @description
 #'
 #' reads ccds sequences
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_ccds_fa = function()
@@ -2336,12 +2336,12 @@ read_ccds_fa = function()
     ccds.fa = ccds.fa[ix]
     names(ccds.fa) = ccds.nm[ix]
     return(ccds.fa)
-  }  
+  }
 
 
 #' @name read_hg
 #' @title read_hg
-#' 
+#'
 #' @description
 #' Wrapper around BSgenome call
 #'
@@ -2349,8 +2349,8 @@ read_ccds_fa = function()
 #' BSgenome.Hsapiens.UCSC.hg19 for hg19 and BSgenome.Hsapiens.UCSC.hg19 for hg18.
 #'
 #' If fft = TRUE, can also also return the hg19 ffTrack (requires that the file exists)
-#' Requires the existence of environment variable HG.FFT pointing to ffTrack .rds file.. 
-#' 
+#' Requires the existence of environment variable HG.FFT pointing to ffTrack .rds file..
+#'
 #' @param hg19 Logical whether to return hg18 or hg19 BSgenome. Default TRUE
 #' @param fft Logical whether to return an ffTrack. Default FALSE
 #' @return BSGenome or ffTrack of the genome
@@ -2365,7 +2365,7 @@ read_hg = function(hg19 = T, fft = F)
                   REFGENE.FILE.HG19.FFT = '~/DB/ffTracks/hg19.rds'
               else
                   stop("Need to supply environment variable to FFtracked genome or load BSGenome. Env Var: HG.FFT")
-              
+
               return(readRDS(REFGENE.FILE.HG19.FFT))
           }
     else
@@ -2374,7 +2374,7 @@ read_hg = function(hg19 = T, fft = F)
             if (hg19)
                 library(BSgenome.Hsapiens.UCSC.hg19)
             else
-                library(BSgenome.Hsapiens.UCSC.hg18)            
+                library(BSgenome.Hsapiens.UCSC.hg18)
             return(Hsapiens)
         }
   }
@@ -2385,8 +2385,8 @@ read_hg = function(hg19 = T, fft = F)
 #'
 #' @description
 #'
-#' reads hg context file 
-#' 
+#' reads hg context file
+#'
 #' @author Marcin Imielinski
 #' @export
 read_hg_context = function()
@@ -2402,7 +2402,7 @@ read_hg_context = function()
 #'
 #' converts one or more gaf data frame rows to GRanges list (works only for gaf rows with composite type genome) using "CompositeCoordinates"
 #' named by FeatureID
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 gaf2gr = function(gaf, strip.chr = T)
@@ -2424,23 +2424,23 @@ gaf2gr = function(gaf, strip.chr = T)
   gaf$GeneLocus = gsub('UNKNOWN;', '', gaf$GeneLocus)
   tmp = lapply(strsplit(gsub('[^\\:]\\-', ':', gaf$CompositeCoordinates), ';'), function(x) strsplit(x, ':'))
   gene.info = as.data.frame(matrix(unlist(tmp), ncol = 4, byrow = T, dimnames = list(NULL, c('chr', 'pos1', 'pos2', 'strand'))), stringsAsFactors = F)
-  
+
   if (strip.chr)
     gene.info$chr = gsub('chr', '', gene.info$chr)
-  
+
   exon.pos = lapply(strsplit(gene.info$pos, ','), function(x) t(sapply(strsplit(x, '-'), as.numeric)))
-  
+
   grl = do.call('GRangesList',
     lapply(1:nrow(gene.info),
            function(x)  GRanges(seqnames = Rle(gene.info$chr[x], nrow(exon.pos[[x]])),
                                 strand = gene.info$strand[x], seqlengths = hg_seqlengths(),
                                 ranges = IRanges(start = exon.pos[[x]][,1], end = exon.pos[[x]][,2]))))
-    
-  if (!is.null(rownames(gaf)))  
+
+  if (!is.null(rownames(gaf)))
     names(grl) = rownames(gaf)
   else
     names(grl) = gaf$FeatureID
-  
+
   return(grl)
 }
 
@@ -2452,11 +2452,11 @@ gaf2gr = function(gaf, strip.chr = T)
 #' @description
 #'
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 rg2exons = function(rg, reorient = FALSE,
   cds = FALSE, # if TRUE will map start and end to starts / ends of cds (otherwise exon boundary)
-  gr = FALSE # if TRUE will return granges list instead of df  
+  gr = FALSE # if TRUE will return granges list instead of df
   )
   {
     exon_starts = strsplit(rg$exon_starts, ',');
@@ -2469,13 +2469,13 @@ rg2exons = function(rg, reorient = FALSE,
     exon_id = lapply(1:length(exon_starts), function(x) if(rg$strand[x][1] == "-") rev(1:length(exon_starts[[x]])) else 1:length(exon_starts[[x]]))
     cds_starts = lapply(1:length(exon_starts), function(x) pmax(exon_starts[[x]]+1, rg$s2[x]+1));  ## pesky 0 coordinates again ..
     cds_ends = lapply(1:length(exon_ends), function(x) pmin(exon_ends[[x]], rg$e2[x]));
-    
+
     if (reorient)
-      {                
+      {
         cds_starts = lapply(1:length(cds_starts), function(x) cds_starts[[x]]-rg$s1[x]+1);
-        cds_ends = lapply(1:length(cds_ends), function(x) cds_ends[[x]]-rg$s1[x]+1);                    
+        cds_ends = lapply(1:length(cds_ends), function(x) cds_ends[[x]]-rg$s1[x]+1);
         exon_starts = lapply(1:length(exon_starts), function(x) exon_starts[[x]]-rg$s1[x]+1);
-        exon_ends = lapply(1:length(exon_ends), function(x) exon_ends[[x]]-rg$s1[x]+1);                
+        exon_ends = lapply(1:length(exon_ends), function(x) exon_ends[[x]]-rg$s1[x]+1);
       }
 
     # modifying exon_start coordinate here to 1 based (prob should do it above but don't want to screw things up)
@@ -2494,7 +2494,7 @@ rg2exons = function(rg, reorient = FALSE,
         out$start = out$exon_start
         out$end = out$exon_end
       }
-      
+
     if (gr)
       {
         out = split(seg2gr(out), out$NM_id);
@@ -2502,9 +2502,9 @@ rg2exons = function(rg, reorient = FALSE,
         if (!is.null(values(out[[1]])$Uniprot))
           values(out)$uniprot = sapply(out, function(x) values(x)$Uniprot[1])
       }
-    
+
     return(out)
-}    
+}
 
 
 #' @name read_entrez
@@ -2513,7 +2513,7 @@ rg2exons = function(rg, reorient = FALSE,
 #' @description
 #'
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_entrez = function()
@@ -2523,16 +2523,16 @@ read_entrez = function()
    eg = eg[!duplicated(eg$Symbol), ];
    eg = eg[!is.na(eg$Symbol), ]
    rownames(eg) = eg$Symbol;
-   return(eg)   
+   return(eg)
 }
 
-#' @name read_msigdb 
-#' @title read_msigdb 
+#' @name read_msigdb
+#' @title read_msigdb
 #'
 #' @description
 #'
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_msigdb = function(path = skidb_env('MSIGDB_PATH'))
@@ -2558,7 +2558,7 @@ read_msigdb = function(path = skidb_env('MSIGDB_PATH'))
 #' @description
 #'
 #' reads "GMT" format eg reactome
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_gmt = function(fn)
@@ -2568,7 +2568,7 @@ read_gmt = function(fn)
     names(out) = sapply(lines, function(x) x[1])
     return(out)
 }
-  
+
 
 #' @name read_txdb
 #' @title read_txdb
@@ -2576,13 +2576,13 @@ read_gmt = function(fn)
 #' @description
 #'
 #' reads UCSC based txdb in GenomicFeatures directory
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_txdb = function(txdbname = 'hg19.knownGene')
   {
     fn = paste(skidb_env('GENOMIC.FEATURES.ROOT'), txdbname, ".sqlite", sep = "")
-    
+
     if (!file.exists(fn))
       stop(sprintf('DB not found, available DBs include:\n %s. \nUse make_txdb if desired DB not available',
                    paste(gsub('\\.sqllite', '', dir(skidb_env('GENOMIC.FEATURES.ROOT'))), collapse = ", ")))
@@ -2597,13 +2597,13 @@ read_txdb = function(txdbname = 'hg19.knownGene')
 #' @description
 #'
 #' reads UCSC based txdb in GenomicFeatures directory
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 make_txdb = function(db = 'hg19', tablename = 'knownGene')
   {
     txdb = makeTranscriptDbFromUCSC(genome = 'hg19', tablename = 'knownGene')
-    saveFeatures(txdb, paste(skidb_env('GENOMIC.FEATURES.ROOT'), "/", db, ".", tablename, ".sqlite", sep = ""))    
+    saveFeatures(txdb, paste(skidb_env('GENOMIC.FEATURES.ROOT'), "/", db, ".", tablename, ".sqlite", sep = ""))
   }
 
 #' @name blastp
@@ -2612,7 +2612,7 @@ make_txdb = function(db = 'hg19', tablename = 'knownGene')
 #' @description
 #'
 #' Run blastp (via command line) on (single) sequence against uniprot DB (default) or arbitrary DB
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 blastp = function(seq, # can be either a character string of amino acids or a Biostrings Xstring
@@ -2627,18 +2627,18 @@ blastp = function(seq, # can be either a character string of amino acids or a Bi
 
   if (length(seq)>1)
     seq = seq[1];
-  
+
   tmp.fasta.path = paste(skidb_env('TMP.DIR'), 'blastp.marcin.', round(runif(1)*1e15), '.fasta', sep = "")
   write.XStringSet(seq, tmp.fasta.path)
-  
-  blast.cmd = paste(skidb_env('BLAST.DIR'), '/blastp', ' -query ', tmp.fasta.path,  ' -outfmt 3 ', ' -db ', skidb_env('UNIPROT.FA'), sep = "") 
+
+  blast.cmd = paste(skidb_env('BLAST.DIR'), '/blastp', ' -query ', tmp.fasta.path,  ' -outfmt 3 ', ' -db ', skidb_env('UNIPROT.FA'), sep = "")
 
   p = pipe(blast.cmd);
   txt = readLines(p)
   close(p)
   blank.ix = which(txt=="")
   nonblank.ix = which(txt!="")
-  
+
   # assuming that the query results stats are 2 lines from res.ix
   res.start.ix = grep('Sequences producing significant alignments', txt)+2;  blank.ix = which(txt=="");
   res.end.ix = min(blank.ix[blank.ix>res.start.ix]);
@@ -2650,7 +2650,7 @@ blastp = function(seq, # can be either a character string of amino acids or a Bi
   #ugly fixed width processing
   w = get.field.widths(txt[res.start.ix])
   w = c(sum(w[1:(length(w)-2)]), w[(length(w)-1):length(w)])
-  
+
   out = as.data.frame(matrix(unlist(lapply(txt[res.start.ix:res.end.ix], function(x) trim(strsplit.fwf(x, w)))), ncol = 3, byrow = T), stringsAsFactors = F)
   names(out) = c('match', 'score', 'E')
   out$E = as.numeric(out$E)
@@ -2662,13 +2662,13 @@ blastp = function(seq, # can be either a character string of amino acids or a Bi
   align.end.ix = min(blank.ix[blank.ix > align.start])-1
   w = get.field.widths(txt[align.start.ix])
   w = c(sum(w[1:(length(w)-2)]), w[(length(w)-1):length(w)])
-  
+
   out = cbind(out, as.data.frame(matrix(unlist(lapply(txt[align.start.ix:align.end.ix], function(x) trim(strsplit.fwf(x, w)))), ncol = 3, byrow = T), stringsAsFactors = F))
   names(out) = c('match', 'score', 'E')
   out$E = as.numeric(out$E)
   out$score = as.numeric(out$score)
   out$protein =  gsub('^[^\\|]+\\|[^\\|]+\\|(\\w+)+ .*$', '\\1', out$match)
-    
+
   text.con = textConnection(gsub(txt[res.start.ix:res.end.ix]))
   con = read.delim(text.con, strings = F, header = F)
   close(text.con)
@@ -2687,7 +2687,7 @@ tcga_bcr2four = function(x)
   {
     ix = grep('TCGA', x)
     x[ix] = gsub('.*(TCGA.*)', '\\1', x[ix])
-    
+
     return(mapply(function(x,y) if (length(x)>2) if (nchar(x[[1]]) == 4 & nchar(x[[2]]) == 2 & nchar(x[[3]])==4) x[[3]] else y else y, strsplit(gsub('[\\_\\]', '-', x), '\\-'), x))
   }
 
@@ -2700,11 +2700,11 @@ tcga_bcr2four = function(x)
 #'
 #' "clean" will return without all of the unmapped segments (e.g Un_gl000221)
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 get_ucsc_chroms = function(hg19 = T, clean = T, numeric = F, add.chr = F)
-{  
+{
   if (hg19)
     fn = paste(skidb_env('UCSC.DIR'), 'hg19.chrom.sizes.txt', sep = "/")
   else
@@ -2722,8 +2722,8 @@ get_ucsc_chroms = function(hg19 = T, clean = T, numeric = F, add.chr = F)
 
   if (numeric)
     chroms$chr = chr2num(chroms$chr)
-  
-  return(chroms[, c('chr', 'pos1', 'pos2')])    
+
+  return(chroms[, c('chr', 'pos1', 'pos2')])
 }
 
 #' @name get_ucsc_bands
@@ -2733,7 +2733,7 @@ get_ucsc_chroms = function(hg19 = T, clean = T, numeric = F, add.chr = F)
 #' returns segments corresponding to coordinates of ucsc hg18 / hg19 chrom bands
 #'
 #'
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 get_ucsc_bands = function(hg19 = T, arms = F, add.chr = F, gr = T)
@@ -2745,7 +2745,7 @@ get_ucsc_bands = function(hg19 = T, arms = F, add.chr = F, gr = T)
 
     bands = read.delim(fn, strings = F)
     names(bands) = c('chr', 'pos1', 'pos2', 'name', 'stain')
-    
+
     if (add.chr == F)
       bands$chr = gsub('chr', '', bands$chr)
 
@@ -2769,8 +2769,8 @@ get_ucsc_bands = function(hg19 = T, arms = F, add.chr = F, gr = T)
         sl = aggregate(formula = pos2 ~ chr, data = bands, FUN = max);
         bands = GRanges(seqnames = bands$chr, IRanges(pmax(1, bands$pos1), bands$pos2), band = bands$name, stain = bands$stain, seqlengths = structure(sl[,2]+1, names = sl[,1]))
       }
-    
-    return(bands)    
+
+    return(bands)
   }
 
 
@@ -2783,7 +2783,7 @@ get_ucsc_bands = function(hg19 = T, arms = F, add.chr = F, gr = T)
 #' return output as XStringSet
 #'
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 muscle = function(seq, sub.mat = NULL, gap.open = -10, gap.extend = -4, html.out = NULL)
@@ -2800,7 +2800,7 @@ muscle = function(seq, sub.mat = NULL, gap.open = -10, gap.extend = -4, html.out
     }
   } else
     html.out = '';
-  
+
   cmd = paste(skidb_env('MUSCLE.PATH'), '-in', tmp.name, '-fastaout', tmp.name.out, html.out)
   if(!is.null(sub.mat))
     {
@@ -2811,7 +2811,7 @@ muscle = function(seq, sub.mat = NULL, gap.open = -10, gap.extend = -4, html.out
   }
   cmd = paste(cmd, '2>/dev/null')
   system(cmd)
-  
+
   if (inherits(seq, 'AAStringSet'))
     return(readAAStringSet(tmp.name.out, format = 'fasta'))
   else
@@ -2827,42 +2827,42 @@ muscle = function(seq, sub.mat = NULL, gap.open = -10, gap.extend = -4, html.out
 #'
 #' intervals = GRanges tiling of genome with $tum.cov and $norm.cov fields (obtain using bam.cov.gr)
 #' ra = output of ra_breaks, GRangesList of signed breakpoint pairs pointing in the direction of the joined segment
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_prego = function(fn)
-  {  
+  {
     res.fn = paste(fn, '.results', sep = '')
     res.tmp = readLines(res.fn)
     res = structure(lapply(split(res.tmp, cumsum(grepl('edges', res.tmp))), function(x) read.delim(textConnection(x), strings = F, skip = 1, header = F,
       col.names = c('node1', 'chr1', 'pos1', 'node2', 'chr2', 'pos2', 'cn'))), names = gsub(':', '', grep('edges', res.tmp, value = T)))
     res[[1]]$tag = paste(res[[1]]$node1, ':', res[[1]]$node2, sep = '')
-    
+
     out = list()
     segstats = GRanges(res[[1]]$chr1, IRanges(res[[1]]$pos1, res[[1]]$pos2), strand = '+',
       cn = res[[1]]$cn, left.tag = res[[1]]$node1, right.tag = res[[1]]$node2)
     segstats = gr.fix(c(segstats, gr.flip(segstats)))
-    
+
     neg.ix = which(strand(segstats) == '-')
     tag1 = segstats$right.tag;
     tag1[neg.ix] = segstats$left.tag[neg.ix]
     tag2 = segstats$left.tag;
     tag2[neg.ix] = segstats$right.tag[neg.ix]
-    
+
     out$adj.cn = matrix(0, nrow = length(segstats), ncol = length(segstats), dimnames = list(tag1, tag2))
     out$adj.cn[cbind(res[[2]]$node1, res[[2]]$node2)] = res[[2]]$cn
     out$adj.cn[cbind(res[[2]]$node2, res[[2]]$node1)] = res[[2]]$cn
     out$adj.cn[cbind(res[[3]]$node1, res[[3]]$node2)] = res[[3]]$cn
     out$adj.cn[cbind(res[[3]]$node2, res[[3]]$node1)] = res[[3]]$cn
-    
+
     out$adj.type = matrix('', nrow = length(segstats), ncol = length(segstats), dimnames = list(tag1, tag2))
     out$adj.type[cbind(res[[2]]$node1, res[[2]]$node2)] = 'ref'
     out$adj.type[cbind(res[[2]]$node2, res[[2]]$node1)] = 'ref'
     out$adj.type[cbind(res[[3]]$node1, res[[3]]$node2)] = 'ab'
     out$adj.type[cbind(res[[3]]$node2, res[[3]]$node1)] = 'ab'
     out$segstats = segstats;
-    
-    return(out)    
+
+    return(out)
   }
 
 #' @name read_ucsc_files_table
@@ -2873,7 +2873,7 @@ read_prego = function(fn)
 #' corresponding to track metadata and the corresponding files (which are
 #' assumed to lie in the same directory
 #'
-#' e.g. "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/files.txt"#' 
+#' e.g. "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSeq/files.txt"#'
 #' @author Marcin Imielinski
 #' @export
 read_ucsc_files_table = function(url)
@@ -2885,7 +2885,7 @@ read_ucsc_files_table = function(url)
     all.names = unique(unlist(sapply(tmp2, function(x) names(x))))
     base.path = gsub('\\/[^\\/]+$', '', url)
     out = data.frame(url = paste(base.path, files$path, sep = '/'), file = files$path, stringsAsFactors = F)
-    
+
     out[, all.names] = NA
     for (i in 1:nrow(out))
       out[i, names(tmp2[[i]])] = tmp2[[i]]
@@ -2899,7 +2899,7 @@ read_ucsc_files_table = function(url)
 #' @description
 #'
 #' reads hic domain output from Rao .. Lieberman Cell 2014
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_hicdomain = function(fn)
@@ -2921,10 +2921,10 @@ read_hicdomain = function(fn)
 #' @description
 #'
 #' Runs UCSC command tool wig2big on a set of wig files (files.wig) and outputs to the corresponding bigwig files (files.bw)
-#' wig files can be zipped as well 
+#' wig files can be zipped as well
 #'
 #' If files.bw is not provided then will just replace wig with big wig in files.wig name)
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 wig2bw = function(files.wig, files.bw = NULL,
@@ -2935,18 +2935,18 @@ wig2bw = function(files.wig, files.bw = NULL,
   require(parallel)
   if (is.null(files.bw))
     files.bw = paste(files.wig, '.bw', sep = "")
-  
+
   if (fork>0)
     {
       require(parallel)
       fork = min(fork, 20) ; # can't get too crazy
-      
+
       mclapply(1:length(files.wig),
              function(x) system(sprintf('wigToBigWig %s %s %s', files.wig[x],chrom.path, files.bw[x])), mc.cores = fork)
     }
   else
     sapply(1:length(files.wig),
-           function(x) system(sprintf('wigToBigWig %s %s %s', files.wig[x],chrom.path, files.bw[x])))  
+           function(x) system(sprintf('wigToBigWig %s %s %s', files.wig[x],chrom.path, files.bw[x])))
 }
 
 #' @name bw2rle
@@ -2973,23 +2973,23 @@ bw2rle = function(files.bw, regions = NULL, files.rle = NULL,
   {
     require(parallel)
     if (!is.null(regions))
-      if (inherits(regions, 'data.frame')) ## we try to convert to genomic ranges if we see data frame 
+      if (inherits(regions, 'data.frame')) ## we try to convert to genomic ranges if we see data frame
         regions = seg2gr(regions)
-    
+
     if (is.null(files.rle))
       files.rle = paste(files.bw, '.rle.rds', sep = "")
-    
+
     get.fun = function(x)
       {
         if (file.exists(files.bw[x]))
           {
             if (verbose == T)
               print(paste("Processing", files.bw[x]))
-            
+
             tmp = import.bw2(files.bw[x], regions, fill = NA, output.rle = T);
-            
+
             if (dump.files)
-              saveRDS(tmp, file = files.rle[x])          
+              saveRDS(tmp, file = files.rle[x])
             if (!return.objects) # only return the file name
               tmp = files.rle[x]
 
@@ -2997,10 +2997,10 @@ bw2rle = function(files.bw, regions = NULL, files.rle = NULL,
           }
         else
           tmp = NA
-        return(tmp);                                    
+        return(tmp);
       }
-    
-    if (fork==0)    
+
+    if (fork==0)
       out = sapply(1:length(files.bw), get.fun)
     else
       {
@@ -3011,7 +3011,7 @@ bw2rle = function(files.bw, regions = NULL, files.rle = NULL,
 
     names(out) = files.bw;
 
-    return(out)    
+    return(out)
   }
 
 #' @name wig2rlea
@@ -3023,24 +3023,24 @@ bw2rle = function(files.bw, regions = NULL, files.rle = NULL,
 #' across list of regions (GRanges or seg data frame)
 #'
 #' These files can be loaded with readRDS
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
-wig2rle = function(files.wig, files.rle, 
+wig2rle = function(files.wig, files.rle,
   fork = 0, ## if true will MCL apply over (max 20) processors
   return.objects = TRUE, # if false, will return only filenames
   dump.files = TRUE, # if false, will not dump rle Rdata files
   verbose = FALSE
   )
-  {    
-    if (inherits(regions, 'data.frame')) ## we try to convert to genomic ranges if we see data frame 
+  {
+    if (inherits(regions, 'data.frame')) ## we try to convert to genomic ranges if we see data frame
       regions = seg2gr(regions)
-    
+
     if (is.null(files.rle))
       files.rle = paste(files.wig, '.rle.rds', sep = "")
 
     BLOCK.SIZE = 1e5;
-    
+
     .wig2rle = function(x)
       {
         fh = file(files.wig[x])
@@ -3050,16 +3050,16 @@ wig2rle = function(files.wig, files.rle,
         chunk = chunk[-grep('^track type', chunk)];
 
         while (length(chunk)>0)
-          {            
+          {
             step.ix = grep('(fixedStep)|(variableStep)', chunk)
-            
+
 #            step.names = sapply(strsplit(gsub('^fixedStep ', '', bla[ix]), ' '), function(x) sapply(strsplit(x, '='), function(y) y[1]))
             step.vals = sapply(strsplit(gsub('^fixedStep ', '', bla[ix]), ' '), function(x) sapply(strsplit(x, '='), function(y) y[2]))
 
-            
+
           }
       }
-                                
+
   }
 
 
@@ -3071,7 +3071,7 @@ wig2rle = function(files.wig, files.rle,
 #'
 #'
 #' Runs BEDTools genomeCoverageBed and then UCSC tool BedGraphToWigWig
-#' on a set of bam files to output per base coverage in bigwig format. 
+#' on a set of bam files to output per base coverage in bigwig format.
 #'
 #' If files.bw is not provided then will just replace .bam with .bedtools.coverage.bw in files.wig name)
 #'
@@ -3079,7 +3079,7 @@ wig2rle = function(files.wig, files.rle,
 #' and skidb_env('UCSC.CHROM.SIZES.PATH') should be valid.   Also assumes bam is sorted (ie samtools sort bam)
 #'
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 bam2bw = function(files.bam, files.bw = NULL,
@@ -3091,7 +3091,7 @@ bam2bw = function(files.bam, files.bw = NULL,
 
 
   .bam2bw = function(x) { cmd = paste(
-                                    sprintf('genomeCoverageBed -ibam %s -g %s -bg > %s.tmp.bedgraph', 
+                                    sprintf('genomeCoverageBed -ibam %s -g %s -bg > %s.tmp.bedgraph',
                                             files.bam[x], skidb_env('UCSC.CHROM.SIZES.PATH'), files.bw[x]),
                                     sprintf('bedGraphToBigWig %s.tmp.bedgraph %s %s', files.bw[x], skidb_env('UCSC.CHROM.SIZES.PATH'), files.bw[x]),
                           #          sprintf('rm %s.tmp.bedgraph', files.bw[x]),
@@ -3104,12 +3104,12 @@ bam2bw = function(files.bam, files.bw = NULL,
     {
       require(parallel)
       fork = min(fork, 20) ; # can't get too crazy
-      
+
       mclapply(1:length(files.bam), .bam2bw, mc.cores = fork)
     }
   else
     sapply(1:length(files.bam), .bam2bw)
-           
+
 }
 
 
@@ -3118,12 +3118,12 @@ bam2bw = function(files.bam, files.bw = NULL,
 #'
 #' @description
 #' takes wigfile of coverage with path fn (which is either a text, gz, or bz2 file) and
-#' outputs all "covered" positions (chr pos) to out.fn as space separated file. 
+#' outputs all "covered" positions (chr pos) to out.fn as space separated file.
 #'
 #' NOTE: assumes all positions without 0 value are covered
-# NOTE: assumes wig file is in fixedStep format 
+# NOTE: assumes wig file is in fixedStep format
 #' reads knownGene and refGene and crosses the two (left join) to yield an uber table
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 wig2covered = function(fn, out.fn = paste(fn, '.covered.txt', sep = ''), verbose = T,
@@ -3131,11 +3131,11 @@ wig2covered = function(fn, out.fn = paste(fn, '.covered.txt', sep = ''), verbose
   )
   {
     type = gsub('.*\\.([^\\.]+)', '\\1', fn)
-    
+
     if (!(type %in% c('txt', 'wig', 'bz2', 'gz')))
       stop('Input file must be wig file in text format (extension .wig, .txt), bz2 format (extension .bz2), or gz format (extension .gz')
-            
-    
+
+
     if (type == 'gz')
       {
         p = pipe(paste('gunzip -c', fn, " | grep -n fixedStep | sed 's/\\(\\:fixedStep\\)\\|\\(chrom\\=\\)\\|\\(start\\=\\)\\|\\(step\\=\\)//g'"), 'r')
@@ -3154,7 +3154,7 @@ wig2covered = function(fn, out.fn = paste(fn, '.covered.txt', sep = ''), verbose
         fs = read.delim(p, sep = ' ', header = F, strings = F, col.names = c('line', 'chr', 'start', 'step'))
         close(p)
       }
-        
+
     con.out = file(out.fn, 'w')
     l = fs$line
     chr = fs$chr
@@ -3165,7 +3165,7 @@ wig2covered = function(fn, out.fn = paste(fn, '.covered.txt', sep = ''), verbose
       wigf = bz2file(fn, 'r')
     else
       wigf = file(fn, 'r')
-      
+
     line = readLines(wigf, l[1]-1)
     last = 0;
     for (i in 2:length(l))
@@ -3177,7 +3177,7 @@ wig2covered = function(fn, out.fn = paste(fn, '.covered.txt', sep = ''), verbose
           {
             ix = which(ix)
                                         #        out[(last + 1):(last + length(ix))] =  paste(chr[i-1], st[i-1]+ix)
-            writeLines(paste(chr[i-1], st[i-1]+ix), con.out)        
+            writeLines(paste(chr[i-1], st[i-1]+ix), con.out)
             last = last + length(ix)
           }
         if ((i %% 100)==0 & verbose)
@@ -3196,7 +3196,7 @@ wig2covered = function(fn, out.fn = paste(fn, '.covered.txt', sep = ''), verbose
 #' @description
 #'
 #' read maf taking care of headers
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE, verbose = FALSE)
@@ -3210,19 +3210,19 @@ read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE,
 
                 if (length(header)==0)
                     return(data.frame())
-                
+
                 if (nskip == length(header))
                     {
                         header = readLines(fn, 50)
                         nskip = sum(grepl('^#', header))
                     }
-                
+
                 if (nskip == length(header))
                     {
                         header = readLines(fn, 500)
                         nskip = sum(grepl('^#', header))
                     }
-                
+
                 if (nskip == length(header))
                     stop('Header is extra long check file')
             }
@@ -3262,17 +3262,17 @@ read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE,
 #' @description
 #'
 #' wrapper around variatnAnnotation reads VCF into granges or data.table format
-#' 
+#'
 #' @author Marcin Imielinski
 #' @export
 read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL, verbose = FALSE, add.path = FALSE, tmp.dir = '~/temp/.tmpvcf', ...)
-    {        
+    {
         require(VariantAnnotation)
         in.fn = fn
 
         if (verbose)
             cat('Loading', fn, '\n')
-        
+
         if (!is.null(gr))
             {
                 tmp.slice.fn = paste(tmp.dir, '/vcf_tmp', gsub('0\\.', '', as.character(runif(1))), '.vcf', sep = '')
@@ -3287,7 +3287,7 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL
             {
                 if (!file.exists(swap.header))
                     stop(sprintf('Swap header file %s does not exist\n', swap.header))
-                
+
                 system(paste('mkdir -p', tmp.dir))
                 tmp.name = paste(tmp.dir, '/vcf_tmp', gsub('0\\.', '', as.character(runif(1))), '.vcf', sep = '')
                 if (grepl('gz$', fn))
@@ -3301,10 +3301,10 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL
                     system(sprintf("grep '^[#]' %s > %s.header", swap.header, tmp.name))
 
                 system(sprintf("cat %s.header %s.body > %s", tmp.name, tmp.name, tmp.name))
-                vcf = readVcf(tmp.name, hg, ...)                
+                vcf = readVcf(tmp.name, hg, ...)
                 system(sprintf("rm %s %s.body %s.header", tmp.name, tmp.name, tmp.name))
             }
-        else        
+        else
             vcf = readVcf(fn, hg, ...)
         out = rowData(vcf)
         values(out) = cbind(values(out), info(vcf))
@@ -3315,7 +3315,7 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL
                     names(m) = paste(names(m), g, sep = '_')
                     values(out) = cbind(values(out), m)
                 }
-        
+
         if (!is.null(gr))
             system(paste('rm', tmp.slice.fn))
 
@@ -3330,17 +3330,17 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL
 #' @description
 #'
 #' pull reads from 10x .bam across windows and return matrix barcodes x windows or window x window co-coverage matrix
-#' 
+#'
 #' @param bam bam file
 #' @param wins GRanges of windows to query and tally
 #' @param cocov logical flag whether to return cocov length(win) x length(win) matrix or matrix of fragments x windows
 #'
-#' 
+#'
 read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FALSE, verbose = FALSE)
 {
     require(Rsamtools)
-    require(data.table)    
-    
+    require(data.table)
+
     win = streduce(wins)
     if (verbose)
         cat('Extracting reads\n')
@@ -3352,27 +3352,27 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
 
     if (all(is.na(reads$RX)))
         reads[, RX := BX]
-    
+
     if (verbose)
         cat('Finished extracting reads\n')
 
     # reads2 = seg2gr(reads[!is.na(MD), ][is.dup(RX), ][, span := diff(range(start)), by = RX])
     reads2 = seg2gr(reads[is.dup(RX), ][ , span := diff(range(start)), by = RX][!is.na(RX), ])
     #    reads2 = seg2gr(reads[!is.na(MD), ][, span := diff(range(start)), by = RX])
-    
+
     if (length(reads2)==0)
         {
             warning('No reads found with RX flag')
             return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
         }
-           
+
     r2 = grdt(reads2[, c('RX')] %*% wins)
 
     if (nrow(r2)==0)
         return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
 
-     r2 = r2[!is.na(RX), ]    
-    
+     r2 = r2[!is.na(RX), ]
+
     setkey(r2, RX)
 
     if (readcount)
@@ -3382,7 +3382,7 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
 
     if (verbose)
         cat('Finished making data.table\n')
-    
+
     require(Matrix)
     urx = unique(r2$RX)
     M = sparseMatrix(as.integer(factor(r2$RX), urx), r2$subject.id, x = r2$weight)
@@ -3390,7 +3390,7 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
 
     if (verbose)
         cat('Finished tallying\n')
-    
+
     if (cocov)
         {
             out = (t(M) %*% M)
@@ -3427,13 +3427,13 @@ meme = function(sequences, basedir = './',
 
         if (is.character(sequences))
             sequences = DNAStringSet(sequences)
-        
+
         if (is.null(names(sequences)))
             names(sequences) = as.character(1:length(sequences))
-       
+
         writeXStringSet(sequences, paste0(outdir, '/sequences.fa'))
 
-        cmd = sprintf('cd %s; %s sequences.fa -dna -oc . -nostatus -time %s -maxsize %s -mod zoops -nmotifs %s -minw %s -maxw 50 -V', normalizePath(outdir), MEMEPATH, tilim, maxsize, nmotifs, minw, maxw)       
+        cmd = sprintf('cd %s; %s sequences.fa -dna -oc . -nostatus -time %s -maxsize %s -mod zoops -nmotifs %s -minw %s -maxw 50 -V', normalizePath(outdir), MEMEPATH, tilim, maxsize, nmotifs, minw, maxw)
         if (revcomp)
             cmd = paste(cmd, '-revcomp')
 
@@ -3467,19 +3467,19 @@ dreme = function(case, control = NULL,
 
         if (is.factor(control))
             control = as.character(control)
-        
+
         if (is.character(case))
             case = DNAStringSet(case)
-        
+
         if (is.null(names(case)))
             names(case) = as.character(1:length(case))
-        
+
         writeXStringSet(case, paste0(outdir, '/case.fa'))
-        
+
         if (!is.null(control))
             {if (is.character(control))
                  control = DNAStringSet(control)
-                
+
                 if (is.null(names(control)))
                     names(control) = as.character(1:length(control))
                 writeXStringSet(control, paste0(outdir, '/control.fa'))
@@ -3489,7 +3489,7 @@ dreme = function(case, control = NULL,
             cmd = sprintf('cd %s; %s -p dreme_out/case.fa  -n dreme_out/control.fa -t %s -mink %s -maxk %s -g %s -v 5 -e %s', normalizePath(basedir), MEMEPATH, tilim, mink, maxk, ngen, e.thresh)
         else
             cmd = sprintf('cd %s; %s -p dreme_out/case.fa  -n dreme_out/control.fa -t %s -mink %s -maxk %s -g %s -v 5 -m %s', normalizePath(basedir), MEMEPATH, tilim, mink, maxk, ngen, m.thresh)
-        
+
         cat('Running:', cmd, '\n')
         system(cmd)
         cat('DREME processing done check results at', outdir, '\n')
