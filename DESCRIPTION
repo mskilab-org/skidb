@@ -5,7 +5,7 @@ Version: 0.1
 Author: Marcin Imielinski <mimielinski@nygenome.org>
 Maintainer: Marcin Imielinski <mimielinski@nygenome.org>
 Description: Misc R functions for dealing with common flat file formats, DBs,
-    and software inputs and outputs.
+    and software inputs and outputs .
 Imports:
     data.table,
     Biostrings,
