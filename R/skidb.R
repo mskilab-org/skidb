@@ -3265,7 +3265,7 @@ read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE,
 #'
 #' @author Marcin Imielinski
 #' @export
-read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL, verbose = FALSE, add.path = FALSE, tmp.dir = '~/temp/.tmpvcf', ...)
+read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL, verbose = FALSE, add.path = FALSE, tmp.dir = '~/temp/.tmpvcf', ...)
     {
         require(VariantAnnotation)
         in.fn = fn
@@ -3306,15 +3306,33 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = FALSE, swap.header = NULL
             }
         else
             vcf = readVcf(fn, hg, ...)
+
         out = rowData(vcf)
-        values(out) = cbind(values(out), info(vcf))
-        if (geno)
-            for (g in names(geno(vcf)))
+        values(out) = cbind(values(out), info(vcf))        
+
+        
+        if (!is.null(geno))
+            if (length(intersect(geno, names(geno(vcf))))==0)
                 {
-                    m = geno(vcf)[[g]]
-                    names(m) = paste(names(m), g, sep = '_')
-                    values(out) = cbind(values(out), m)
+                    geno = names(geno(vcf))
+                    warning(sprintf('Loading all geno field:\n\t%s', paste(geno, collapse = ',')))
                 }
+
+                                    
+        if (!is.null(geno))
+            {
+                gt = NULL
+                for (g in geno)
+                    {
+                    m = as.data.frame(geno(vcf)[[g]])
+                    names(m) = paste(g, names(m), sep = '_')
+                    if (is.null(gt))
+                        gt = m
+                    else
+                        gt = cbind(gt, m)
+                }
+                values(out) = cbind(values(out), as(gt, 'DataFrame'))
+            }
 
         if (!is.null(gr))
             system(paste('rm', tmp.slice.fn))
