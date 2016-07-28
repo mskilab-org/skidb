@@ -2238,7 +2238,7 @@ read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE
 .gencode_transcript_split = function(gr, tx)
     {
         require(Hmisc)
-#        gr.span = seg2gr(grdt(gr)[, list(seqnames = seqnames[1], start = min(start), end = max(end), strand = strand[1], transcript_name = transcript_name[1], gene_name = gene_name[1], gene_status = gene_status[1], gene_type = gene_type[1]), by = transcript_id], seqlengths = seqlengths(gr))
+#        gr.span = seg2gr(gr2dt(gr)[, list(seqnames = seqnames[1], start = min(start), end = max(end), strand = strand[1], transcript_name = transcript_name[1], gene_name = gene_name[1], gene_status = gene_status[1], gene_type = gene_type[1]), by = transcript_id], seqlengths = seqlengths(gr))
 
         ## keep.ix = !is.na(values(gr.span)[, by.og])
         ## gr.span = gr.span[keep.ix,]
@@ -2250,7 +2250,7 @@ read_gencode = function(type = NULL, by = NULL, fn.rds = skidb_env('GENCODE.FILE
         ## tmp.id.gr = paste(values(gr)[, by.og], seqnames(gr), sep = '_')
         ## gr$transcript_id = values(gr.span)[, by.og][match(tmp.id.gr, tmp.id)]
 
-        gr$start.local = grdt(gr)[, id := 1:length(gr)][, tmp.st := 1+c(0, cumsum(width)[-length(width)]), by = transcript_id][, keyby = id][, tmp.st]
+        gr$start.local = gr2dt(gr)[, id := 1:length(gr)][, tmp.st := 1+c(0, cumsum(width)[-length(width)]), by = transcript_id][, keyby = id][, tmp.st]
 
         gr$end.local = gr$start.local + width(gr) -1
         grl = split(gr, gr$transcript_id)
@@ -3366,7 +3366,7 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
             return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
         }
 
-    r2 = grdt(reads2[, c('RX')] %*% wins)
+    r2 = gr2dt(reads2[, c('RX')] %*% wins)
 
     if (nrow(r2)==0)
         return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
@@ -3656,6 +3656,27 @@ dump_mutations_for_IGV_snapshots = function(maf, igv.dir,
   system(paste('cp', MUTATION.MAKEFILE.PATH, paste(igv.dir, '/Makefile', sep = "")))
 
   writeLines(sprintf('Instructions: Now go into shell, cd into directory "%s", and type either "make snapshots" or "make snapshots_batch" to generate screen shots either locally or on LSF, respectively.', igv.dir))
-
+  
   return(mutation_log)
 }
+
+
+#' @name read_peaks
+#' @title read_peaks
+#'
+#' @description
+#'
+#' reads UCSC / ENCODE / Roadmap broad and narrow peak data into granges object 
+#'
+#' @author Marcin Imielinski
+#' @export
+read_peaks = function(fn, chr.sub = TRUE)
+    {
+        ln = grep('^((track)|(browser)|\\#)', readLines(fn), value = TRUE, invert = TRUE)
+        tab = fread(paste(ln, collapse = '\n'), header = FALSE)
+        nm = c('chrom', 'start', 'end', 'name', 'score', 'strand', 'signalValue', 'pValue', 'qValue', 'peak')
+        setnames(tab, nm[1:ncol(tab)])
+        if (chr.sub)
+            tab[, chrom := gsub('chr', '', chrom)]
+        return(seg2gr(tab))
+    }
