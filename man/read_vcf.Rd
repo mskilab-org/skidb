@@ -4,7 +4,7 @@
 \alias{read_vcf}
 \title{read_vcf}
 \usage{
-read_vcf(fn, gr = NULL, hg = "hg19", geno = FALSE, swap.header = NULL,
+read_vcf(fn, gr = NULL, hg = "hg19", geno = NULL, swap.header = NULL,
   verbose = FALSE, add.path = FALSE, tmp.dir = "~/temp/.tmpvcf", ...)
 }
 \description{
