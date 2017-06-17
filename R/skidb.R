@@ -3265,6 +3265,91 @@ read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE,
     }
 
 
+#' @name write_vcf
+#' @title write_vcf
+#'
+#' @description
+#'
+#' writes any GRanges vars into vcf using columns of vars to guide choice of common fields like
+#' $FILTER
+#' $GT
+#' $REF
+#' $ALT
+#'
+#' and adding all other fields to INFO
+#'
+#' @author Marcin Imielinski
+#' @export
+write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
+{
+    genoh = DataFrame(row.names = 'GT', Number = 1, Type = 'Float', Description = 'Genotypes')        
+
+    for (field in names(values(vars))) ## clean up vars of weird S4 data structures that are not compatible with before
+    {
+        tmp = tryCatch(as.character(values(vars)[, field]), error = function(e) NULL)
+        if (is.null(tmp))
+        {
+            values(vars)[, field] = NULL
+            warning(paste('Could not process field', field, "due to S4 conversion issues, discarding"))
+        }
+        is.num = !all(is.na(as.numeric(tmp)))
+        if (!is.num)
+            values(vars)[, field] = tmp
+    }
+
+
+    info.fields = intersect(info.fields, names(values(vars)))
+
+    if (length(info.fields)==0) # dummy field to keep asVCF happy
+    {
+        info.fields = "DM"
+        vars$DM = '.'
+    }
+    
+    is.num = sapply(info.fields, function(x) !suppressWarnings(all(is.na(as.numeric(as.character(values(vars)[, x]))))))                
+    infoh = DataFrame(
+        row.names = info.fields, Number = 1,
+        Type = ifelse(is.num, 'Float', 'String'),
+        Description = paste('Field', info.fields))
+        
+    if (is.null(vars$REF))
+        vars$REF = vars$refbase
+    
+    if (is.null(vars$ALT))
+        vars$ALT = vars$altbase
+
+    if (is.null(vars$REF))
+        vars$REF =  "N"
+    
+    if (is.null(vars$ALT))
+        vars$ALT =  "X"
+
+    if (is.null(vars$FILTER))
+        vars$FILTER =  "PASS"
+
+
+    vcf = asVCF(VRanges(seqnames(vars), ranges(vars), ref = vars$REF, alt = vars$ALT, sampleNames = rep(sname, length(vars))))
+
+    for (field in info.fields)
+        info(vcf)[[field]] = values(vars)[[field]]
+    
+#    geno(vcf)$DP = vars$DP; geno(vcf)$AD = vars$AD; geno(vcf)$FT = vars$FT
+    
+    info(header(vcf)) = infoh
+
+    if (is.null(vars$FILTER))
+        filt(vcf) = rep('PASS', length(vars))
+    else
+        filt(vcf) = vars$FILTER
+            
+    rownames(vcf) = vars$assembly.coord
+    geno(header(vcf)) = genoh
+
+    geno(vcf)$GT = vcf$GT
+
+    writeVcf(vcf, filename)
+}
+
 #' @name read_vcf
 #' @title read_vcf
 #'
@@ -3330,7 +3415,7 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL,
                 for (g in  names(geno(vcf)))
                 {
                     geno = names(geno(vcf))
-                    warning(sprintf('Loading all geno field:\n\t%s', paste(geno, collapse = ',')))
+                    warning(sprintf('Loading all geno fields:\n\t%s', paste(geno, collapse = ',')))
                 }
             
             gt = NULL
@@ -3365,7 +3450,7 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL,
 #' @param wins GRanges of windows to query and tally
 #' @param cocov logical flag whether to return cocov length(win) x length(win) matrix or matrix of fragments x windows
 #'
-#'
+#' @export
 read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FALSE, verbose = FALSE)
 {
     require(Rsamtools)
@@ -3401,7 +3486,7 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
     if (nrow(r2)==0)
         return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
 
-     r2 = r2[!is.na(RX), ]
+    r2 = r2[!is.na(RX), ]
 
     setkey(r2, RX)
 
@@ -3422,25 +3507,30 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
         cat('Finished tallying\n')
 
     if (cocov)
+    {
+        M = as.matrix(M)
+        out = (t(M) %*% M)
+        if (nrow(out) != length(wins) | ncol(out) != length(wins))
         {
-            out = (t(M) %*% M)
-            if (nrow(out) != length(wins) | ncol(out) != length(wins))
-                {
-                    tmp = out
-                    out = sparseMatrix(1,1, x = 0, dims = c(length(wins), length(wins)))
-                    out[1:nrow(tmp), 1:ncol(tmp)] = tmp
-                }
-            return(out)
+            tmp = out
+            out = sparseMatrix(1,1, x = 0, dims = c(length(wins), length(wins)))
+            out[1:nrow(tmp), 1:ncol(tmp)] = tmp
         }
+        return(out)
+    }
     else
         return(M)
 }
 
 
 #############
-# run meme
-#
-#
+#' @name meme
+#' @title meme
+#' @description
+#'  run meme on biostring input
+#'
+#' @author Marcin Imielinski
+#' @export 
 #############
 meme = function(sequences, basedir = './',
         tilim = 18000,
@@ -3449,7 +3539,7 @@ meme = function(sequences, basedir = './',
         minw = 3,
         maxw = 50,
         revcomp = TRUE,
-        MEMEPATH = '/broad/software/free/Linux/redhat_6_x86_64/pkgs/meme_4.7.0/bin/meme')
+        MEMEPATH = '/nfs/sw/meme/meme-4.11.2/bin/meme')
     {
 
         outdir = paste(basedir, 'memeres', sep = '/')
@@ -3473,6 +3563,12 @@ meme = function(sequences, basedir = './',
     }
 
 
+#' @name dreme
+#' @title dreme 
+#' @description
+#'  run dreme on biostrings case control input with given parameters
+#'
+#' @export 
 #############
 # run dreme
 #
@@ -3486,7 +3582,7 @@ dreme = function(case, control = NULL,
     e.thresh = 0.05,
     m.thresh = NULL,
     ngen = 100,
-    MEMEPATH = '/broad/software/free/Linux/redhat_6_x86_64/pkgs/meme_4.7.0/bin/dreme')
+    MEMEPATH = '/nfs/sw/meme/meme-4.11.2/bin/dreme')
     {
 
         outdir = paste(basedir, 'dreme_out', sep = '/')
