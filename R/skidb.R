@@ -515,7 +515,38 @@ fiss_delete = function(
   }
 
 
+#' @name read.xml
+#' @title read.xml
+#' @description
+#'
+#' reads a bunch of xml in files into data.table, flattens, and
+#' and concatenates the files via rbindlist fill
+#'
+#' @export
+read.xml = function(files, pattern = NULL, as.data.table = TRUE, na.sort = TRUE, mc.cores = 1)
+{
+    out = rbindlist(mclapply(files, function(x)
+        {
+            row = unlist(XML::xmlToList(x))
+            names(row) = gsub('\\.+', '.', names(row))
 
+            if (!is.null(pattern))
+                row = row[grep(pattern, names(row))]
+            
+            return(as.data.table(as.list(row)))
+        }, mc.cores = mc.cores), fill = TRUE)
+
+    if (na.sort)
+        {
+            ix = rev(as.numeric(names(sort(table(colSums(!is.na(row)))))))
+            out = out[, ix, with = FALSE]
+        }
+    
+    if (!as.data.table)
+        out = as.data.frame(out)
+
+    return(out)                       
+}
 
 #' @name fiss_task
 #' @title fiss_task
