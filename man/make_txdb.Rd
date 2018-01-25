@@ -12,4 +12,3 @@ reads UCSC based txdb in GenomicFeatures directory
 \author{
 Marcin Imielinski
 }
-

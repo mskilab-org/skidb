@@ -18,4 +18,3 @@ id entity type should match the entity ids (ie if sample ids should be "Sample",
 \author{
 Marcin Imielinski
 }
-

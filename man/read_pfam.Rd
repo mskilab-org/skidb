@@ -12,4 +12,3 @@ reads pfam dump from saved .rds path location
 \author{
 Marcin Imielinski
 }
-

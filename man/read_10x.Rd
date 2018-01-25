@@ -5,7 +5,7 @@
 \title{tally 10x fragments across windows}
 \usage{
 read_10x(bam = NULL, wins, reads = NULL, cocov = TRUE,
-  readcount = FALSE, verbose = FALSE)
+  readcount = FALSE, verbose = TRUE)
 }
 \arguments{
 \item{bam}{bam file}
@@ -17,4 +17,3 @@ read_10x(bam = NULL, wins, reads = NULL, cocov = TRUE,
 \description{
 pull reads from 10x .bam across windows and return matrix barcodes x windows or window x window co-coverage matrix
 }
-

@@ -16,4 +16,3 @@ If files.bw is not provided then will just replace wig with big wig in files.wig
 \author{
 Marcin Imielinski
 }
-

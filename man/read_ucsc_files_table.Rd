@@ -16,4 +16,3 @@ e.g. "http://hgdownload.cse.ucsc.edu/goldenPath/hg19/encodeDCC/wgEncodeUwRepliSe
 \author{
 Marcin Imielinski
 }
-

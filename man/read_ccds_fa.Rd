@@ -12,4 +12,3 @@ reads ccds sequences
 \author{
 Marcin Imielinski
 }
-

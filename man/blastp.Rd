@@ -12,4 +12,3 @@ Run blastp (via command line) on (single) sequence against uniprot DB (default) 
 \author{
 Marcin Imielinski
 }
-

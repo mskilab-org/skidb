@@ -17,4 +17,3 @@ process rsem files from UNC
 \author{
 Marcin Imielinski
 }
-

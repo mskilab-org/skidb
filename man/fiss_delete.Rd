@@ -14,4 +14,3 @@ Delete entities via fiss
 \author{
 Marcin Imielinski
 }
-

@@ -25,4 +25,3 @@ NOTE: if type = 'wkspace' then dat is just a named vector specifying workspace a
 \author{
 Marcin Imielinski
 }
-

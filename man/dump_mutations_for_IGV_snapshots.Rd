@@ -23,4 +23,3 @@ dump.mutation.log = FALSE, so as to not rewrite the mutation log.
 \author{
 Marcin Imielinski
 }
-

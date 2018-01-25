@@ -13,4 +13,3 @@ named by FeatureID
 \author{
 Marcin Imielinski
 }
-

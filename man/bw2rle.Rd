@@ -18,4 +18,3 @@ These files can be loaded with readRDS
 \author{
 Marcin Imielinski
 }
-

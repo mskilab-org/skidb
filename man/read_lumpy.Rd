@@ -13,4 +13,3 @@ with strands pointing AWAY from junction
 \author{
 Marcin Imielinski
 }
-

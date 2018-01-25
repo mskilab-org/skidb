@@ -13,4 +13,3 @@ process repeat masker file into GRanges
 \author{
 Marcin Imielinski
 }
-

@@ -13,4 +13,3 @@ wrapper around variatnAnnotation reads VCF into granges or data.table format
 \author{
 Marcin Imielinski
 }
-

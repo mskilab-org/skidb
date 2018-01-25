@@ -12,4 +12,3 @@ reads hic domain output from Rao .. Lieberman Cell 2014
 \author{
 Marcin Imielinski
 }
-

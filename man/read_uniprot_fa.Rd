@@ -12,4 +12,3 @@ reads uniprot fasta file into BioStrings BStringSet format
 \author{
 Marcin Imielinski
 }
-

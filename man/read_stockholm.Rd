@@ -13,4 +13,3 @@ Each row of each matrix comprises a sequence alignment.
 \author{
 Marcin Imielinski
 }
-

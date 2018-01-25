@@ -20,4 +20,3 @@ reads knownGene and refGene and crosses the two (left join) to yield an uber tab
 \author{
 Marcin Imielinski
 }
-

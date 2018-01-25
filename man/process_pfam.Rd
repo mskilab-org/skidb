@@ -15,4 +15,3 @@ and list names corresponding to pfam domain IDs.
 \author{
 Marcin Imielinski
 }
-

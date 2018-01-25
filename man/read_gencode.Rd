@@ -15,4 +15,3 @@ If that file doesn't exist
 \author{
 Marcin Imielinski
 }
-

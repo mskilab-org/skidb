@@ -12,4 +12,3 @@ reads "GMT" format eg reactome
 \author{
 Marcin Imielinski
 }
-

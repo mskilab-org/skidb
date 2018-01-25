@@ -12,4 +12,3 @@ Extracts "four digit" code from tcga "bcr" or "dcc" style barcode
 \author{
 Marcin Imielinski
 }
-

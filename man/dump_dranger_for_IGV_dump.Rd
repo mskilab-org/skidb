@@ -24,4 +24,3 @@ of queued mutations on the farm)
 \author{
 Marcin Imielinski
 }
-

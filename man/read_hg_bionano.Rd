@@ -12,4 +12,3 @@ reads bionano human genome into GRanges format
 \author{
 Marcin Imielinski
 }
-

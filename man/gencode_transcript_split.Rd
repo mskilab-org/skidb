@@ -12,4 +12,3 @@ splits gencode gr into transcript, taking care of some junky issues in the meant
 \author{
 Marcin Imielinski
 }
-

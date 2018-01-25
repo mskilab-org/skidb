@@ -20,4 +20,3 @@ gets all the individual / pair and sample info for an individual / pair set
 \author{
 Marcin Imielinski
 }
-

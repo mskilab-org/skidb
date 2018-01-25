@@ -12,4 +12,3 @@ reads uniprot map from file
 \author{
 Marcin Imielinski
 }
-

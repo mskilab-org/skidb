@@ -13,4 +13,3 @@ Takes uniprot data file and outputs a two column table mapping id's to refseq nu
 \author{
 Marcin Imielinski
 }
-

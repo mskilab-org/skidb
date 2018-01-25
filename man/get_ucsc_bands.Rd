@@ -12,4 +12,3 @@ returns segments corresponding to coordinates of ucsc hg18 / hg19 chrom bands
 \author{
 Marcin Imielinski
 }
-

@@ -14,4 +14,3 @@ Run a task within firehose via fiss
 \author{
 Marcin Imielinski
 }
-

@@ -532,20 +532,20 @@ read.xml = function(files, pattern = NULL, as.data.table = TRUE, na.sort = TRUE,
 
             if (!is.null(pattern))
                 row = row[grep(pattern, names(row))]
-            
+
             return(as.data.table(as.list(row)))
         }, mc.cores = mc.cores), fill = TRUE)
 
     if (na.sort)
         {
-            ix = rev(as.numeric(names(sort(table(colSums(!is.na(row)))))))
+            ix = rev(order(colSums(!is.na(out))))
             out = out[, ix, with = FALSE]
         }
-    
+
     if (!as.data.table)
         out = as.data.frame(out)
 
-    return(out)                       
+    return(out)
 }
 
 #' @name fiss_task
@@ -3313,7 +3313,7 @@ read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE,
 #' @export
 write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
 {
-    genoh = DataFrame(row.names = 'GT', Number = 1, Type = 'Float', Description = 'Genotypes')        
+    genoh = DataFrame(row.names = 'GT', Number = 1, Type = 'Float', Description = 'Genotypes')
 
     for (field in names(values(vars))) ## clean up vars of weird S4 data structures that are not compatible with before
     {
@@ -3336,22 +3336,22 @@ write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(n
         info.fields = "DM"
         vars$DM = '.'
     }
-    
-    is.num = sapply(info.fields, function(x) !suppressWarnings(all(is.na(as.numeric(as.character(values(vars)[, x]))))))                
+
+    is.num = sapply(info.fields, function(x) !suppressWarnings(all(is.na(as.numeric(as.character(values(vars)[, x]))))))
     infoh = DataFrame(
         row.names = info.fields, Number = 1,
         Type = ifelse(is.num, 'Float', 'String'),
         Description = paste('Field', info.fields))
-        
+
     if (is.null(vars$REF))
         vars$REF = vars$refbase
-    
+
     if (is.null(vars$ALT))
         vars$ALT = vars$altbase
 
     if (is.null(vars$REF))
         vars$REF =  "N"
-    
+
     if (is.null(vars$ALT))
         vars$ALT =  "X"
 
@@ -3363,16 +3363,16 @@ write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(n
 
     for (field in info.fields)
         info(vcf)[[field]] = values(vars)[[field]]
-    
+
 #    geno(vcf)$DP = vars$DP; geno(vcf)$AD = vars$AD; geno(vcf)$FT = vars$FT
-    
+
     info(header(vcf)) = infoh
 
     if (is.null(vars$FILTER))
         filt(vcf) = rep('PASS', length(vars))
     else
         filt(vcf) = vars$FILTER
-            
+
     rownames(vcf) = vars$assembly.coord
     geno(header(vcf)) = genoh
 
@@ -3380,96 +3380,6 @@ write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(n
 
     writeVcf(vcf, filename)
 }
-
-#' @name read_vcf
-#' @title read_vcf
-#'
-#' @description
-#'
-#' wrapper around variatnAnnotation reads VCF into granges or data.table format
-#'
-#' @author Marcin Imielinski
-#' @export
-read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL, verbose = FALSE, add.path = FALSE, tmp.dir = '~/temp/.tmpvcf', ...)
-    {
-        require(VariantAnnotation)
-        in.fn = fn
-
-        if (verbose)
-            cat('Loading', fn, '\n')
-
-        if (!is.null(gr))
-            {
-                tmp.slice.fn = paste(tmp.dir, '/vcf_tmp', gsub('0\\.', '', as.character(runif(1))), '.vcf', sep = '')
-                cmd = sprintf('bcftools view %s %s > %s', fn,  paste(gr.string(gr.stripstrand(gr)), collapse = ' '), tmp.slice.fn)
-                if (verbose)
-                    cat('Running', cmd, '\n')
-                system(cmd)
-                fn = tmp.slice.fn
-            }
-
-        if (!is.null(swap.header))
-            {
-                if (!file.exists(swap.header))
-                    stop(sprintf('Swap header file %s does not exist\n', swap.header))
-
-                system(paste('mkdir -p', tmp.dir))
-                tmp.name = paste(tmp.dir, '/vcf_tmp', gsub('0\\.', '', as.character(runif(1))), '.vcf', sep = '')
-                if (grepl('gz$', fn))
-                    system(sprintf("zcat %s | grep '^[^#]' > %s.body", fn, tmp.name))
-                else
-                    system(sprintf("grep '^[^#]' %s > %s.body", fn, tmp.name))
-
-                if (grepl('gz$', swap.header))
-                    system(sprintf("zcat %s | grep '^[#]' > %s.header", swap.header, tmp.name))
-                 else
-                    system(sprintf("grep '^[#]' %s > %s.header", swap.header, tmp.name))
-
-                system(sprintf("cat %s.header %s.body > %s", tmp.name, tmp.name, tmp.name))
-                vcf = readVcf(tmp.name, hg, ...)
-                system(sprintf("rm %s %s.body %s.header", tmp.name, tmp.name, tmp.name))
-            }
-        else
-            vcf = readVcf(fn, hg, ...)
-        
-        out = granges(vcf)
-
-        if (!is.null(values(out)))
-            values(out) = cbind(values(out), info(vcf))
-        else
-            values(out) = info(vcf)
-        
-                                    
-        if (!is.null(geno))
-        {
-            if (geno)
-                for (g in  names(geno(vcf)))
-                {
-                    geno = names(geno(vcf))
-                    warning(sprintf('Loading all geno fields:\n\t%s', paste(geno, collapse = ',')))
-                }
-            
-            gt = NULL
-            for (g in geno)
-            {
-                m = as.data.frame(geno(vcf)[[g]])
-                names(m) = paste(g, names(m), sep = '_')
-                if (is.null(gt))
-                    gt = m
-                else
-                    gt = cbind(gt, m)
-            }
-            values(out) = cbind(values(out), as(gt, 'DataFrame'))
-        }
-
-        if (!is.null(gr))
-            system(paste('rm', tmp.slice.fn))
-
-        if (add.path)
-            values(out)$path = in.fn
-
-        return(out)
-    }
 
 #' @name read_10x
 #' @title tally 10x fragments across windows
@@ -3482,7 +3392,7 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL,
 #' @param cocov logical flag whether to return cocov length(win) x length(win) matrix or matrix of fragments x windows
 #'
 #' @export
-read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FALSE, verbose = FALSE)
+read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FALSE, verbose = TRUE)
 {
     require(Rsamtools)
     require(data.table)
@@ -3496,42 +3406,45 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
     else if (is.null(reads))
         stop('provide either reads or bam as input')
 
-    if (all(is.na(reads$RX)))
-        reads[, RX := BX]
+    if (!is.data.table(reads))
+      reads = gr2dt(reads)
+
+    if (all(is.na(reads$BX)))
+        reads[, BX := RX]
 
     if (verbose)
         cat('Finished extracting reads\n')
 
-    # reads2 = seg2gr(reads[!is.na(MD), ][is.dup(RX), ][, span := diff(range(start)), by = RX])
-    reads2 = seg2gr(reads[is.dup(RX), ][ , span := diff(range(start)), by = RX][!is.na(RX), ])
-    #    reads2 = seg2gr(reads[!is.na(MD), ][, span := diff(range(start)), by = RX])
+    # reads2 = seg2gr(reads[!is.na(MD), ][is.dup(BX), ][, span := diff(range(start)), by = BX])
+    reads2 = seg2gr(reads[is.dup(BX), ][ , span := diff(range(start)), by = BX][!is.na(BX), ])
+    #    reads2 = seg2gr(reads[!is.na(MD), ][, span := diff(range(start)), by = BX])
 
     if (length(reads2)==0)
         {
-            warning('No reads found with RX flag')
+            warning('No reads found with BX flag')
             return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
         }
 
-    r2 = gr2dt(reads2[, c('RX')] %*% wins)
+    r2 = gr2dt(reads2[, c('BX')] %*% wins)
 
     if (nrow(r2)==0)
         return(sparseMatrix(1, 1, x = 0, dims = c(length(wins), length(wins))))
 
-    r2 = r2[!is.na(RX), ]
+    r2 = r2[!is.na(BX), ]
 
-    setkey(r2, RX)
+    setkey(r2, BX)
 
     if (readcount)
-        r2[, weight := 1, by = RX]
+        r2[, weight := 1, by = BX]
     else
-        r2[, weight := width/sum(width), by = RX]
+        r2[, weight := width/sum(width), by = BX]
 
     if (verbose)
         cat('Finished making data.table\n')
 
     require(Matrix)
-    urx = unique(r2$RX)
-    M = sparseMatrix(as.integer(factor(r2$RX), urx), r2$subject.id, x = r2$weight)
+    urx = unique(r2$BX)
+    M = sparseMatrix(as.integer(factor(r2$BX), urx), r2$subject.id, x = r2$weight, dims = c(length(urx), length(wins)))
     rownames(M) = as.character(urx)
 
     if (verbose)
@@ -3561,7 +3474,7 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
 #'  run meme on biostring input
 #'
 #' @author Marcin Imielinski
-#' @export 
+#' @export
 #############
 meme = function(sequences, basedir = './',
         tilim = 18000,
@@ -3595,11 +3508,11 @@ meme = function(sequences, basedir = './',
 
 
 #' @name dreme
-#' @title dreme 
+#' @title dreme
 #' @description
 #'  run dreme on biostrings case control input with given parameters
 #'
-#' @export 
+#' @export
 #############
 # run dreme
 #
@@ -3651,6 +3564,136 @@ dreme = function(case, control = NULL,
         system(cmd)
         cat('DREME processing done check results at', outdir, '\n')
     }
+
+
+
+matchPSSM = function(pssm, x, min.score = '80%')
+{
+    pssm = pssm[DNA_BASES, ]
+        nm = names(x)
+        if (is.null(nm))
+            nm = as.character(1:length(x))
+        if (!is.character(x))
+            x = as.character(x)
+        out = do.call('rbind', lapply(1:length(x), function(y)
+            {
+                m = matchPWM(pssm, DNAString(x[y]), min.score = min.score, with.score = TRUE)
+                if (length(m)>0)
+                    return(cbind(query = nm[y], strand = '+', as.data.frame(ranges((m)))))
+                else
+                    return(NULL)
+            }))
+        out2 = as.data.table(do.call('rbind', lapply(1:length(x), function(y)
+            {
+                m = matchPWM(pssm, reverseComplement(DNAString(x[y])), min.score = min.score)
+                if (length(m)>0)
+                    return(cbind(query = nm[y], strand = '-', as.data.frame(ranges((m)))))
+                else
+                    return(NULL)
+            })))
+
+        if (nrow(out2)>0)
+            {
+                out2[, end := nchar(x)[match(query, nm)] - end + 1][, start := nchar(x)[match(query, nm)] - start + 1]
+                tmp = out2$start
+                out2[, start := end][, end:=tmp]
+            }
+        return(as.data.table(rbind(out, out2))[order(query), ])
+    }
+
+
+
+.logo2pssm = function(x, n = 10000, k = 1, p = rep(0.25, 4))
+    structure(do.call('rbind', lapply(strsplit(x, ''), function(x)
+        structure(sapply(
+            list(
+                A =  c(1, 0, 0, 0),
+                T =  c(0, 1, 0, 0),
+                G =  c(0, 0, 1, 0),
+                C =  c(0, 0, 0, 1),
+                Y =  c(0, 1, 0, 1),
+                R =  c(1, 0, 1, 0),
+                W =  c(1, 1, 0, 0),
+                S =  c(0, 0, 1, 1),
+                K =  c(0, 1, 1, 1),
+                M =  c(1, 0, 0, 1),
+                D =  c(1, 1, 1, 0),
+                V =  c(1, 0, 1, 1),
+                H =  c(1, 1, 0, 1),
+                B =  c(0, 1, 1, 1),
+                X =  c(1, 1, 1, 1),
+                N =  c(1, 1, 1, 1))[x], function(y) log((y*n/4 + p*k) / sum(y + k)/p)),
+                  names = c('A', 'T', 'G', 'C')))), dimnames = list(c('A', 'T', 'G', 'C'), unlist(strsplit(x, ''))))[c('A', 'C', 'G', 'T'), ]
+
+#' @name moglow
+#' @title moglow
+#' @description
+#'
+#' Plots motif instances on sequences as HTML
+#'
+#' @author Marcin Imielinski
+#' @param motif length 1 character vector representing motif to
+#' @param case  character vector sequences to plot
+#' @export
+moglow = function(motif, case, thresh  = "80%", fn = '~/public_html/dump.html')
+{
+  if (is.null(names(case)))
+      names(case) = as.character(1:length(case))
+
+    motifre =
+        gsub('V', '[ACG]',
+             gsub('H', '[ACT]',
+                  gsub('D', '[AGT]',
+                       gsub('B', '[CGT]',
+                            gsub('M', '[AC]',
+                                 gsub('K', '[GT]',
+                                      gsub('W', '[AT]',
+                                           gsub('S', '[GC]',
+                                                gsub('Y', '[CT]',
+                                                     gsub('R', '[AG]', motif)
+                                                     )))))))))
+
+    message('Prelim regexp scan through ', length(case), ' input sequences using regexp ', motifre)
+    ixf = grepl(motifre, as.character(case))
+    ixr = grepl(motifre, as.character(reverseComplement(DNAStringSet(case))))
+    case = case[ixf | ixr]
+    message('  and ', length(case), ' sequences remain')
+    pssm = .logo2pssm(motif)
+    thresh = "80%"
+    case = structure(as.character(case), names = names(case))
+    case.motif = matchPSSM(pssm, case, thresh)
+    case.motif$query = as.character(case.motif$query)
+    case.motif$type = ifelse(case.motif$strand == '+', 'motif', 'rmotif')
+                                        #        case.event = data.table(query = unique(case.motif$query))[, start := 51][, end := nchar(as.character(case[as.character(query)]))-49]
+                                        #        case.event$type = gr2dt(mut2)[as.numeric(case.event$query), Variant_Type]
+    case.event = NULL
+    case.other = case.motif[, as.data.table(as.data.frame(as(coverage(IRanges(start, end), width = nchar(as.character(case[as.character(query)])))==0, 'IRanges'))), by = query]
+    case.other$type = 'fill'
+    col.map = c('motif' = 'red', rmotif = 'brown', fill = 'lightgrey' , 'DEL' = 'blue', 'INS' = 'green')
+    case.coord = rbind(case.motif, case.other, case.event, fill = TRUE)[order(query, start), ]
+    case.coord$type = factor(case.coord$type, names(col.map))
+    case.coord = case.coord[order(type), ]
+    case.coord[, seq:= mapply(substr, x = as.character(case[as.character(query)]), start = start, stop = end), by = query]
+
+    case.rle = split(rep(0, sum(nchar(case))), rep(names(case), nchar(case)))
+    for (i in 1:nrow(case.coord))
+        case.rle[[as.character(case.coord$query[i])]][case.coord$start[i]:case.coord$end[i]] = as.integer(case.coord$type[i])
+    case.rle = case.rle[as.character(unique(case.motif$query))]
+
+    case.gr = sort(as(as(case.rle, 'RleList'), 'GRanges'))
+    case.gr$col = col.map[levels(case.coord$type)[case.gr$score]]
+    case.gr$seq = gr2dt(case.gr)[, mapply(substr, x = case[as.character(seqnames)], start = start, stop = end)]
+
+    todump = gr2dt(case.gr)[, paste('<font color ="', col, '">', seq, "</font>", sep = '', collapse = ''), by = seqnames]
+    todump = todump[as.character(seqnames) %in% names(case)[!duplicated(case)]]
+    message('dumping html file of sequences to ', fn)
+    todump[, writeLines(paste(V1,
+                              sep = '\t'),fn)]
+    case.coord[, strand == ifelse(type == 'rmotif', '-', '+')]
+    case.coord = case.coord[type %in% c('rmotif', 'motif'), ]
+    gr = GRanges('Anchor', IRanges(case.coord$start, case.coord$end), strand = case.coord$strand); values(gr) = case.coord[,  list(type, seq)]
+    return(gr)
+}
 
 
 #' @name dump_dranger_for_IGV_dump
@@ -3813,7 +3856,7 @@ dump_mutations_for_IGV_snapshots = function(maf, igv.dir,
   system(paste('cp', MUTATION.MAKEFILE.PATH, paste(igv.dir, '/Makefile', sep = "")))
 
   writeLines(sprintf('Instructions: Now go into shell, cd into directory "%s", and type either "make snapshots" or "make snapshots_batch" to generate screen shots either locally or on LSF, respectively.', igv.dir))
-  
+
   return(mutation_log)
 }
 
@@ -3823,7 +3866,7 @@ dump_mutations_for_IGV_snapshots = function(maf, igv.dir,
 #'
 #' @description
 #'
-#' reads UCSC / ENCODE / Roadmap broad and narrow peak data into granges object 
+#' reads UCSC / ENCODE / Roadmap broad and narrow peak data into granges object
 #'
 #' @author Marcin Imielinski
 #' @export
@@ -3837,3 +3880,312 @@ read_peaks = function(fn, chr.sub = TRUE)
             tab[, chrom := gsub('chr', '', chrom)]
         return(seg2gr(tab))
     }
+
+
+
+#' @name write.mdb
+#' @title write.mdb
+#'
+#' @description
+#' Writes data.table (or anything coercible to one) to MonetDB.  If data.table has key will create an index.
+#' Additional indices may be specified.  If MonetDB file already exists then will try to append to it (assuming same schema).
+#' Stored table will have altered column names (changed to lowercase, all non word characters replaced by underscores, and
+#' a col_ prefix added) to maximize compatibility with SQL.
+#'
+#' The written database can be later accessed using mdb(fn, expression) or mdb(con, expression) where con is the output of
+#' this function (write.mdb) or con = mdb(fn).
+#'
+#' @author Marcin Imielinski
+#' @param dt (keyed) data.table
+#' @param fn path to write to
+#' @return DBI handle to MDB
+#'! @param index_on list of character vectors specifying additional keys (in addition to key(dt))
+#' @export
+write.mdb = function(dt, fn = tempdir(), name = 'data_table', max.varchar = 256, index_on = NULL, overwrite = TRUE, verbose = TRUE)
+{
+  if (!is.data.table(dt))
+    dt = as.data.table(dt)
+
+  if (file.exists(fn))
+    {
+      if (overwrite)
+      {
+        if (verbose)
+          message('Overwriting existing ', fn)
+        system(paste('rm -rf', fn))
+      }
+      else
+      {
+        if (verbose)
+          {
+            message("Appending to existing db in ", fn)
+            res = muffle(print(mdb(fn)))
+            if (is.null(res))
+              stop('Previous db corrupted, please run with overwrite = TRUE')
+          }
+      }
+    }
+
+  if (!is.null(key(dt)))
+    index_on = c(list(primkey = key(dt)), index_on)
+
+  types = sapply(dt, class)
+  types.mdb = ifelse(types == 'character', sprintf('VARCHAR(%s)', max.varchar),
+              ifelse(types == 'factor', sprintf('VARCHAR(%s)', max.varchar),
+              ifelse(types == 'numeric', 'DOUBLE',
+              ifelse(types == 'integer', 'INTEGER',
+              ifelse(types == 'logical', 'INTEGER', NA)))))
+
+  names.mdb = structure(paste0('col_', gsub("\\W+", "_", tolower(names(types)))), names = names(types))
+  keep = !is.na(types.mdb)
+
+  ##  create_str = sprintf("CREATE TABLE %s ( \n %s \n);",
+  ##                      name, paste(names.mdb[keep], types.mdb[keep], collapse = ',\n'))
+
+  if (!all(keep))
+  {
+    warning(paste("These columns do not have valid format, please convert o either factor, character, numeric, integer, or logical:\n",
+                  paste(names(names.mdb)[!keep], collapse = ',')))
+  }>
+
+  ## if (verbose)
+  ##   message('Table created using SQL commands:\n', create_str)
+
+
+  ## test = tryCatch(DBI::dbExecute(mydb, create_str), error = function(e) NULL)
+  ## if (is.null(test))
+  ##   {
+  ##     DBI::dbDisconnect(mydb, shutdown=TRUE)
+  ##     mydb = DBI::dbConnect(MonetDBLite::MonetDBLite(), embedded = fn)
+  ##     DBI::dbExecute(mydb, create_str)
+  ##   }
+
+  if (verbose)
+    message('Dumping ', nrow(dt), ' rows into table ', name)
+
+  setnames(dt, names.mdb)
+
+  test = tryCatch({
+    mydb = DBI::dbConnect(MonetDBLite::MonetDBLite(), embedded = fn)
+    if (all(keep))
+      DBI::dbWriteTable(mydb, name, dt, append = TRUE)
+    else
+      DBI::dbWriteTable(mydb, name, dt[, names.mdb[keep], with = FALSE], append = TRUE)
+  }, error = function(e) NULL)
+
+  if (is.null(test))
+  {
+    MonetDBLite::monetdblite_shutdown()
+    mydb = DBI::dbConnect(MonetDBLite::MonetDBLite(), embedded = fn)
+    if (all(keep))
+      DBI::dbWriteTable(mydb, name, dt, append = TRUE)
+    else
+      DBI::dbWriteTable(mydb, name, dt[, names.mdb[keep], with = FALSE], append = TRUE)
+  }
+
+  ## fix dt back
+  setnames(dt, names(names.mdb))
+
+  create_index_str = sapply(names(index_on), function(x)
+  {
+    str = sprintf("CREATE INDEX %s ON %s(%s)", x, name, paste(names.mdb[index_on[[x]]], collapse = ','))
+    if (verbose)
+      message('Creating index: ', str)
+    DBI::dbExecute(mydb, str)
+    return(str)
+  })
+
+  return(mydb)
+}
+
+#' @name mdb
+#' @title mdb
+#' @description
+#'
+#' Quickly queries MonetDB file or connection using expressions on columns to select, returning
+#' data.table
+#'
+#' @author Marcin Imielinski
+#' @param fn filename or DBI connection to sqllite
+#' @param where expression on which to filter
+#' @export
+mdb = function(fn, where = NULL, name = "data_table", all = FALSE, con = FALSE)
+{
+
+  where = paste(deparse(substitute(where)), collapse = ' ')
+
+  if (is.character(fn))
+    mydb = DBI::dbConnect(MonetDBLite::MonetDBLite(), fn)
+  else
+    mydb = fn
+
+  if (con)
+    return(mydb)
+
+  tab = dplyr::tbl(mydb, name)
+
+  if (where == 'NULL')
+    where = NULL
+  if (!is.null(where))
+  {
+    cmd = paste("out = tab %>%", sprintf('filter(%s)', where))
+    eval(parse(text = cmd))
+    return(as.data.table(out))
+  }
+  else
+  {
+    if (all)
+      return(as.data.table(as.data.frame(tab)))
+    else
+      return(as.data.table(as.data.frame(head(tab))))
+  }
+}
+
+
+
+.procbamlines = function(lines, fields, tags = NULL, verbose = FALSE)
+{
+  bam.fields = c('qname', 'flag', 'rname', 'pos', 'mapq', 'cigar', 'rnext', 'pnext', 'tlen', 'seq', 'qual')
+  fix = match(fields, bam.fields)
+  if (any(is.na(fix)))
+  {
+    message("These fields do not belong in bam file\n\t": paste(fields[is.na(fix)], collapse = ' '))
+    message("Choose one or more of the following:", paste(bam.fields, collapse = ' '))
+    stop()
+  }
+  if (verbose)
+    cat(".")
+  linesp = strsplit(lines, '\t')
+  chunk = as.data.table(do.call(rbind, lapply(linesp, function(x) x[fix])))[, line := 1:length(V1)]
+  m = munlist(lapply(linesp, function(x) x[-c(fix)]))
+  if (length(tags)>0)
+        {
+            tagchunk = tryCatch(fread(paste(m[,3], collapse = '\n'), sep = ':'),
+                                error = function(e) NULL)
+            if (is.null(tagchunk)) ## slower but only option if m[,3] is ragged
+                tagchunk = as.data.table(do.call(rbind, lapply(strsplit(m[,3], ':'), function(x) x[1:3])))
+            tagchunk[, line := as.numeric(m[,1])]
+            tagchunk = dcast.data.table(tagchunk[V1 %in% tags, ], line ~ V1, value.var = 'V3')
+            chunk = merge(chunk, tagchunk, by = 'line')[, -1, with = FALSE]
+        }
+  else
+    chunk = chunk[, -1, with = FALSE]
+  setnames(chunk, 1:length(fix), bam.fields[fix])
+  fn = intersect(c(fields, tags), names(chunk))
+  chunk = chunk[, fn, with = FALSE]
+  if (verbose)
+    cat("|")
+  return(chunk)
+}
+
+#' @name bam.read
+#' @title bam.read
+#' @description
+#'
+#' Loads entire bam or slice into data.table or dumps to csv via samtools call (instead
+#' of Rsamtools like read.bam)
+#'
+#' @author Marcin Imielinski
+#' @param bam  bam file
+#' @param out.file file to dump csv to, if null returns data.table
+#' @param nlines number of lines in bam file if known, otherwise will be estimated
+#' @param estimate.lines flag whether to count lines or just estimate using bam.size if nlines is not provided (default = TRUE)
+#' @param tags which tags to extract from bam file
+#' @param skip how many lines to skip
+#' @param mc.cores how many threads to use for parsing
+#' @param min.mapq integer min mapping quality
+#' @param samtools.flag additoinal samtools flag to use
+#' @param verbose flag
+#' @export
+bam.read = function(bam, out.file = NULL,
+                    region = NULL,
+                    fields = c('seq'),
+                    tags = c('MD', 'BX'),
+                    nlines = NULL,
+                    estimate.lines = TRUE,
+                    skip = NULL,
+                    chunksize = 1e5,
+                    mc.cores = 1,
+                    min.mapq = 0, samtools.flag = "", verbose = TRUE)
+{
+  if (is.null(region))
+    region = ''
+  else
+    region = paste(gr.string(sort(region)), collapse = ' ')
+
+  cmd =  sprintf('samtools view %s %s -q %s %s', samtools.flag, bam, min.mapq, region)
+
+  if (!is.null(skip))
+  {
+
+    if (is.na(as.numeric(skip)))
+      stop('skip arg must be numeric')
+    message('Skipping ', as.numeric(skip), ' lines')
+    cmd = sprintf('%s | tail -n +%s', cmd, skip)
+  }
+  if (verbose)
+    cat('Calling', cmd, '\n')
+  p = pipe(cmd, open = 'r')
+  fields = union(fields, c('qname', 'rname', 'flag', 'pos', 'mapq', 'cigar'))
+  cnames = c(fields, tags, 'pos2')
+
+  if (is.null(out.file)) ## then we create a data.table
+  {
+    if (is.null(nlines))
+    {
+      if (estimate.lines)
+        nlines = ceiling(file.info(bam)$size/100)
+      else
+      {
+        plines = pipe(paste('samtools view', bam), '| wc -l')
+        nlines = as.numeric(readLines(plines))
+        close(plines)
+      }
+      if (verbose)
+      {
+        message('Expecting ', nlines, ' lines')
+      }
+      dt = as.data.frame(rep(list(rep(NA,nlines)), length(cnames)))
+      names(dt) = cnames
+    }
+  }
+
+  nlines = j = i = 0
+  while (length(chunk <- readLines(p, n = chunksize))>0)
+  {
+    ## split chunk into little chunks based on mc.cores param
+    lchunks = split(chunk, rep(1:mc.cores, ceiling(length(chunk)/mc.cores))[1:length(chunk)])
+    tmp.dt = rbindlist(mclapply(lchunks,
+                               .procbamlines, fields = fields, tags = tags, verbose = verbose,
+                               mc.cores = mc.cores))
+    cigs <- countCigar(tmp.dt$cigar)
+    ## process read
+    tmp.dt$pos = as.numeric(tmp.dt$pos)
+    tmp.dt$pos2 <- tmp.dt$pos + rowSums(cigs[, c("D", "M"), drop = FALSE], na.rm=T) - 1
+    j.new = j + nrow(tmp.dt)
+    if (!is.null(out.file))
+      fwrite(tmp.dt, out.file, append = (i>0) )
+    else
+    {
+      j.new = j + nrow(tmp.dt)
+      dt[j:j.new, names(tmp.dt)] = tmp.dt[, names(tmp.dt), with = FALSE]
+      j = j.new
+    }
+
+    print(tmp.dt)
+    i = i+1
+    message('processed ', j, ' lines')
+  }
+
+    close(p)
+    if (is.null(out.file)) ## trim additional rows from tmp.dt
+    {
+      if (nrow(tmp.dt)>j)
+      {
+        tmp.dt = tmp.dt[1:j, ]
+      }
+      return(tmp.dt)
+    }
+
+    return(out.file)
+}

@@ -13,4 +13,3 @@ reads hg context file
 \author{
 Marcin Imielinski
 }
-

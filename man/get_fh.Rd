@@ -21,4 +21,3 @@ NOTE: requires that a file ~/.fh.config exists in home directory with a single l
 \author{
 Marcin Imielinski
 }
-

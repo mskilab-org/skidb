@@ -14,4 +14,3 @@ low level function to get containers
 \author{
 Marcin Imielinski
 }
-

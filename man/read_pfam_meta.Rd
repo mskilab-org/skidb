@@ -12,4 +12,3 @@ reads meta dat for pfam from cached rds file
 \author{
 Marcin Imielinski
 }
-

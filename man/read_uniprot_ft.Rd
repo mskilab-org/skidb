@@ -12,4 +12,3 @@ reads uniprot ft from raw flat file dump
 \author{
 Marcin Imielinski
 }
-

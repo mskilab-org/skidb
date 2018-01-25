@@ -13,4 +13,3 @@ extracts seqinfo from uniprot fa file
 \author{
 Marcin Imielinski
 }
-

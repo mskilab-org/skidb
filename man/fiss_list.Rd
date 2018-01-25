@@ -14,4 +14,3 @@ List all entities of a given type in a given workspace.
 \author{
 Marcin Imielinski
 }
-

@@ -13,4 +13,3 @@ read maf taking care of headers
 \author{
 Marcin Imielinski
 }
-

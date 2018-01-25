@@ -12,4 +12,3 @@ reads ensembl transcripts into genomic ranges
 \author{
 Marcin Imielinski
 }
-

@@ -12,4 +12,3 @@ processes gaf from source (ie obtained from TCGA) into skidb_env('GAF.DIR')
 \author{
 Marcin Imielinski
 }
-
