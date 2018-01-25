@@ -2,7 +2,6 @@
 % Please edit documentation in R/skidb.R
 \name{read_gaf}
 \alias{read_gaf}
-\alias{read_gaf}
 \title{read_gaf}
 \usage{
 read_gaf(file = "gene", gchain = F)

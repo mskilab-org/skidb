@@ -2,7 +2,6 @@
 % Please edit documentation in R/skidb.R
 \name{get_alignment_summaries}
 \alias{get_alignment_summaries}
-\alias{get_alignment_summaries}
 \alias{process_uniprot_ft}
 \title{get_alignment_summaries}
 \usage{
