@@ -3,6 +3,8 @@
 language: r
 sudo: required
 
+group: deprecated-2017Q4
+
 before_install:
   - curl -OL https://raw.githubusercontent.com/metacran/r-builder/master/pkg-build.sh
   - chmod 755 pkg-build.sh
@@ -14,6 +16,8 @@ r_github_packages:
 
 install:
   - ./pkg-build.sh install_deps
+  - ./travis-tool.sh install_bioc_deps
+  - ./travis-tool.sh install_github r-lib/testthat  
 
 script:
   - ./pkg-build.sh run_tests
