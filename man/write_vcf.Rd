@@ -2,10 +2,23 @@
 % Please edit documentation in R/skidb.R
 \name{write_vcf}
 \alias{write_vcf}
+\alias{write_vcf}
 \title{write_vcf}
 \usage{
 write_vcf(vars, filename, sname = "mysample",
   info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
+
+write_vcf(vars, filename, sname = "mysample",
+  info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
+}
+\arguments{
+\item{vars}{info info}
+
+\item{filename}{string Path to output VCF}
+
+\item{sname}{string Sample name (defautl = 'mysample')}
+
+\item{info.fields}{info info}
 }
 \description{
 writes any GRanges vars into vcf using columns of vars to guide choice of common fields like
@@ -15,7 +28,17 @@ $REF
 $ALT
 
 and adding all other fields to INFO
+
+writes any GRanges vars into vcf using columns of vars to guide choice of common fields like
+$FILTER
+$GT
+$REF
+$ALT
+
+and adding all other fields to INFO
 }
 \author{
+Marcin Imielinski
+
 Marcin Imielinski
 }
