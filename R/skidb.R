@@ -3477,33 +3477,58 @@ read_10x = function(bam = NULL, wins, reads = NULL, cocov = TRUE, readcount = FA
 #' @export
 #############
 meme = function(sequences, basedir = './',
-        tilim = 18000,
-        maxsize = 60000,
-        nmotifs = 8,
-        minw = 3,
-        maxw = 50,
-        revcomp = TRUE,
-        MEMEPATH = '/nfs/sw/meme/meme-4.11.2/bin/meme')
+                alphabet = NULL,
+                tilim = 18000,
+                maxsize = 60000,
+                nmotifs = 8,
+                minw = 3,
+                anr = FALSE,
+                maxw = 50,
+                revcomp = TRUE,
+                mc.cores = 1,
+                MEMEPATH = '/gpfs/commons/groups/imielinski_lab/Software/MEME/meme_4.11.2/bin/meme')
+#                MEMEPATH = '/nfs/sw/meme/meme-4.11.2/bin/meme')
     {
 
-        outdir = paste(basedir, 'memeres', sep = '/')
-        system(paste('mkdir -p', outdir))
+      outdir = paste(basedir, 'memeres', sep = '/')
+      system(paste('mkdir -p', outdir))
 
-        if (is.character(sequences))
-            sequences = DNAStringSet(sequences)
+      if (!is.null(alphabet))
+      {
+        alphabet.path = paste(outdir, '/', 'alphabet.file', sep = '')
+        writeLines(c('ALPHABET custom', alphabet), alphabet.path)
 
         if (is.null(names(sequences)))
-            names(sequences) = as.character(1:length(sequences))
+            names(sequences) = 1:length(sequences)
 
-        writeXStringSet(sequences, paste0(outdir, '/sequences.fa'))
+        ## dumping custom fasta
+        writeLines(as.vector(rbind(paste0('>', names(sequences)), sequences)), paste0(outdir, '/sequences.fa'))
 
-        cmd = sprintf('cd %s; %s sequences.fa -dna -oc . -nostatus -time %s -maxsize %s -mod zoops -nmotifs %s -minw %s -maxw 50 -V', normalizePath(outdir), MEMEPATH, tilim, maxsize, nmotifs, minw, maxw)
-        if (revcomp)
-            cmd = paste(cmd, '-revcomp')
-
+        cmd = sprintf('cd %s; %s sequences.fa -alph alphabet.file -oc . -nostatus -time %s -maxsize %s -mod %s -nmotifs %s -minw %s -maxw %s -V -p %s', normalizePath(outdir), MEMEPATH, tilim, maxsize, ifelse(anr, 'anr', 'zoops'), nmotifs, minw, maxw, mc.cores)
+        
         cat('Running:', cmd, '\n')
         system(cmd)
         cat('MEME processing done check results at', outdir, '\n')
+        
+      } else
+      {
+
+        if (is.character(sequences))
+          sequences = DNAStringSet(sequences)
+        
+        if (is.null(names(sequences)))
+          names(sequences) = as.character(1:length(sequences))
+        
+        writeXStringSet(sequences, paste0(outdir, '/sequences.fa'))
+        
+        cmd = sprintf('cd %s; %s sequences.fa -dna -oc . -nostatus -time %s -maxsize %s -mod %s -nmotifs %s -minw %s -maxw %s -V -p %s', normalizePath(outdir), MEMEPATH, tilim, maxsize, ifelse(anr, 'anr', 'zoops'), nmotifs, minw, maxw, mc.cores)
+        if (revcomp)
+          cmd = paste(cmd, '-revcomp')
+        
+        cat('Running:', cmd, '\n')
+        system(cmd)
+        cat('MEME processing done check results at', outdir, '\n')
+      }
     }
 
 
@@ -3513,11 +3538,7 @@ meme = function(sequences, basedir = './',
 #'  run dreme on biostrings case control input with given parameters
 #'
 #' @export
-#############
-# run dreme
-#
-#
-#############
+
 dreme = function(case, control = NULL,
     basedir = './',
     tilim = 1000,
