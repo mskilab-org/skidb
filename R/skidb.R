@@ -4214,12 +4214,6 @@ bam.read = function(bam, out.file = NULL,
 
 
 
-
-
-
-
-
-
 #' @name read_vcf
 #' @title parses VCF into GRanges or data.table
 #'
