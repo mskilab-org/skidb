@@ -4,19 +4,19 @@ Title: Collection of R functions for accessing and parsing flat file dumps of
 Version: 0.1
 Author: Marcin Imielinski <mimielinski@nygenome.org>
 Maintainer: Marcin Imielinski <mimielinski@nygenome.org>
-Description: Misc R functions for dealing with common flat file formats, DBs,
-    and software inputs and outputs .
+Description: Misc R functions for dealing with common flat file formats, DBs, and software inputs and outputs.
+biocViews:
+Depends:
+    R (>= 3.1.0),
+    GenomicRanges
 Imports:
     data.table,
     Biostrings,
     gUtils,
     tools,
     parallel
-Depends:
-    R (>= 3.1.0),
-    GenomicRanges
 Suggests:
     testthat
 License: MIT
 LazyData: true
-RoxygenNote: 6.0.1
+RoxygenNote: 6.0.1.9000
