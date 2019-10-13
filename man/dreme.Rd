@@ -6,7 +6,7 @@
 \usage{
 dreme(case, control = NULL, basedir = "./", tilim = 1000, mink = 3,
   maxk = 8, e.thresh = 0.05, m.thresh = NULL, ngen = 100,
-  MEMEPATH = "/nfs/sw/meme/meme-4.11.2/bin/dreme")
+  MEMEPATH = "module unload python; module load python/3.5.2; /gpfs/commons/home/mimielinski/software/meme/meme-5.0.4/scripts/dreme-py3")
 }
 \description{
 run dreme on biostrings case control input with given parameters

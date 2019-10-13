@@ -1,3 +1,4 @@
+
 #############################################################################r
 ## Marcin Imielinski
 ## The Broad Institute of MIT and Harvard / Cancer program.
@@ -61,7 +62,8 @@ skidb_env = function(query = NULL)
             SOFTWARE.DIR = normalizePath('~/Software/')
         UCSC.DIR = paste(DB_ROOT, "UCSC", sep = "/")
         env = list(
-            DB_ROOT = DB_ROOT,
+          DB_ROOT = DB_ROOT,
+          HG19.BN = paste0(DB_ROOT, '/BioNano/hg19_DLE1_0kb_0labels.cmap'),
             MSIGDB_PATH = paste(DB_ROOT, '/GSEA/msigdb.v5.0.symbols.gmt', sep = ""),
             UNIPROT.DAT = paste(DB_ROOT, '/Uniprot/uniprot_sprot_human.dat', sep = ""),
             UNIPROT.ROOT = paste(DB_ROOT, '/Uniprot/', sep = ""),
@@ -1988,7 +1990,7 @@ read_refGene = function(hg19 = TRUE, exons = F, cds = F, granges = F, grl = F, c
 
   if (granges | grl)
     {
-      tmp = GRanges(rg$chr, IRanges(rg$start, rg$end), strand = rg$strand, seqlengths = hg_seqlengths(include.junk = T, chr = chr, hg19 = hg19))
+      tmp = GRanges(rg$chr, IRanges(rg$start, rg$end), strand = rg$strand, seqlengths = hg_seqlengths(include.junk = T, chr = chr))
       values(tmp) = rg[, setdiff(names(rg), c('chr', 'start', 'end', 'strand'))]
       rg = tmp;
 
@@ -3486,7 +3488,7 @@ meme = function(sequences, basedir = './',
                 maxw = 50,
                 revcomp = TRUE,
                 mc.cores = 1,
-                MEMEPATH = '/gpfs/commons/groups/imielinski_lab/Software/MEME/meme_4.11.2/bin/meme')
+                MEMEPATH = '/gpfs/commons/home/mimielinski/software/meme/bin/meme')
 #                MEMEPATH = '/nfs/sw/meme/meme-4.11.2/bin/meme')
     {
 
@@ -3547,7 +3549,7 @@ dreme = function(case, control = NULL,
     e.thresh = 0.05,
     m.thresh = NULL,
     ngen = 100,
-    MEMEPATH = '/nfs/sw/meme/meme-4.11.2/bin/dreme')
+    MEMEPATH = 'module unload python; module load python/3.5.2; /gpfs/commons/home/mimielinski/software/meme/meme-5.0.4/scripts/dreme-py3')
     {
 
         outdir = paste(basedir, 'dreme_out', sep = '/')
@@ -3577,7 +3579,7 @@ dreme = function(case, control = NULL,
             }
 
         if (is.null(m.thresh))
-            cmd = sprintf('cd %s; %s -p dreme_out/case.fa  -n dreme_out/control.fa -t %s -mink %s -maxk %s -g %s -v 5 -e %s', normalizePath(basedir), MEMEPATH, tilim, mink, maxk, ngen, e.thresh)
+            cmd = sprintf('cd %s; %s -p dreme_out/case.fa  -n dreme_out/control.fa -t %s -mink %s -maxk %s -g %s -verbosity 5 -e %s', normalizePath(basedir), MEMEPATH, tilim, mink, maxk, ngen, e.thresh)
         else
             cmd = sprintf('cd %s; %s -p dreme_out/case.fa  -n dreme_out/control.fa -t %s -mink %s -maxk %s -g %s -v 5 -m %s', normalizePath(basedir), MEMEPATH, tilim, mink, maxk, ngen, m.thresh)
 
@@ -3598,9 +3600,10 @@ matchPSSM = function(pssm, x, min.score = '80%')
             x = as.character(x)
         out = do.call('rbind', lapply(1:length(x), function(y)
             {
-                m = matchPWM(pssm, DNAString(x[y]), min.score = min.score, with.score = TRUE)
+              m = matchPWM(pssm, DNAString(x[y]), min.score = min.score, with.score = TRUE)
+              
                 if (length(m)>0)
-                    return(cbind(query = nm[y], strand = '+', as.data.frame(ranges((m)))))
+                    return(cbind(query = nm[y], strand = '+', as.data.frame(as(m, 'IRanges'))))
                 else
                     return(NULL)
             }))
@@ -3608,7 +3611,7 @@ matchPSSM = function(pssm, x, min.score = '80%')
             {
                 m = matchPWM(pssm, reverseComplement(DNAString(x[y])), min.score = min.score)
                 if (length(m)>0)
-                    return(cbind(query = nm[y], strand = '-', as.data.frame(ranges((m)))))
+                    return(cbind(query = nm[y], strand = '-', as.data.frame(as(m, 'IRanges'))))
                 else
                     return(NULL)
             })))
@@ -3705,15 +3708,15 @@ moglow = function(motif, case, thresh  = "80%", fn = '~/public_html/dump.html')
     case.gr$col = col.map[levels(case.coord$type)[case.gr$score]]
     case.gr$seq = gr2dt(case.gr)[, mapply(substr, x = case[as.character(seqnames)], start = start, stop = end)]
 
-    todump = gr2dt(case.gr)[, paste('<font color ="', col, '">', seq, "</font>", sep = '', collapse = ''), by = seqnames]
-    todump = todump[as.character(seqnames) %in% names(case)[!duplicated(case)]]
+  todump = gr2dt(case.gr)[, paste('<font color ="', col, '">', seq, "</font>", sep = '', collapse = ''), by = seqnames]
+#    todump = todump[as.character(seqnames) %in% names(case)[!duplicated(case)]]
     message('dumping html file of sequences to ', fn)
     todump[, writeLines(paste(V1,
                               sep = '\t'),fn)]
-    case.coord[, strand == ifelse(type == 'rmotif', '-', '+')]
-    case.coord = case.coord[type %in% c('rmotif', 'motif'), ]
-    gr = GRanges('Anchor', IRanges(case.coord$start, case.coord$end), strand = case.coord$strand); values(gr) = case.coord[,  list(type, seq)]
-    return(gr)
+  case.coord[, strand == ifelse(type == 'rmotif', '-', '+')]
+  case.coord = case.coord[type %in% c('rmotif', 'motif'), ]
+  gr = GRanges(case.coord$query, IRanges(case.coord$start, case.coord$end), strand = case.coord$strand); values(gr) = case.coord[,  list(type, seq)]
+  return(gr)
 }
 
 
@@ -4339,8 +4342,6 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL,
 
 
 
-
-
 #' @name write_vcf
 #' @title write_vcf
 #'
@@ -4359,7 +4360,7 @@ read_vcf = function(fn, gr = NULL, hg = 'hg19', geno = NULL, swap.header = NULL,
 #' @param sname string Sample name (defautl = 'mysample')
 #' @param info.fields info info
 #' @author Marcin Imielinski
-#' @export
+#' @export>
 write_vcf = function(vars, filename, sname = 'mysample', info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
 {
     require(VariantAnnotation)
@@ -4441,6 +4442,483 @@ write_vcf = function(vars, filename, sname = 'mysample', info.fields = setdiff(n
 }
 
 
+#' @name read_cmap
+#' @title read_cmap
+#'
+#' @description
+#'
+#' Reads cmap as GRanges
+#' using
+#' https://bionanogenomics.com/wp-content/uploads/2017/03/30039-CMAP-File-Format-Specification-Sheet.pdf
+#' 
+#' @param path path to cmap file
+#' @author Marcin Imielinski
+#' @export
+read_cmap = function(path, gr = TRUE, seqlevels = NULL)
+{
+  lines = readLines(path)
+  ## header column starts with #h, so we find then strip
+  header = gsub('^\\#h\\s+', '', grep('^\\#h', lines, value = TRUE))
+  
+  ## data are hashless lines
+  data = grep('^\\#', lines, value = TRUE, invert = TRUE)
+
+  if (!length(data))
+    {
+      if (gr)
+        return(GRanges())
+      else
+        return(data.table())
+    }
+  
+  ## now concatenate, paste collapse so can feed into fread
+  dat = fread(paste(c(header, data), collapse = '\n'))
+  dat[, seqnames := CMapId]
+  dat[, start := Position]
+  dat[, end := Position]
+
+  if (!is.null(seqlevels))
+    dat$seqnames = seqlevels(dat$seqnames)
+
+  if (gr)
+    return(dt2gr(dat))
+
+  return(dat)
+}
+
+#' @name write_cmap
+#' @title write_cmap
+#'
+#' @description
+#'
+#' Dumps input GRanges to .cmap file.
+#'
+#' GRanges can have the following cmap fields set (remaining eg ContigLength are inferred from GRanges, or set
+#' to defaults)
+#' CMapId, ContigLength NumSites SiteId LabelChannel St
+#' 
+#' https://bionanogenomics.com/wp-content/uploads/2017/03/30039-CMAP-File-Format-Specification-Sheet.pdf
+#'
+#' IMPORTANT: since BioNano requires integer CMapId seqnames will be converted to integers via
+#' as.integer, which will be done in accordance with the order of seqlevels.  If seqlevels has
+#' an unconventional order (e.g. "1", "10", "11" etc) then this conversion may lead to unexpected
+#' behavior.  when reading back with read_cmap should provide seqlevels to facilitate proper conversion. 
+#' 
+#' @param gr width 1 GRanges to output to cmap
+#' @param version version to output (0.1) - note this is purely a header label, accuracy is up to user
+#' @param sites nickase recognition sites 'CTTAAG' (up to user to make sure correct)
+#' @param channels number of label channels (up to user to make sure correct compatible with file
+#' @param path path to cmap file to output
+#' @author Marcin Imielinski
+#' @export
+write_cmap = function(gr, path = NULL,
+                      version = '0.1',
+                      channels = 1,
+                      sites = 'CTTAAG')
+{
+  if (is.null(path))
+    stop('output path must be specified')
+
+  if (!is(gr, 'GRanges'))
+    gr = gr2dt(gr)
+
+  if (any(width(gr)!=1))
+    stop('Only width 1 GRanges can be dumped to cmap, please check input and fix / trim eg using gr.start, gr.end, gr.mid')
+
+  if (any(is.na(seqlengths(gr))))
+    gr = gr.fix(gr)
+
+  gr = gr.stripstrand(gr)
+
+  gr$CMapId = gr %>% seqnames %>% as.integer
+
+  gr$SiteID = data.table(seqnames = seqnames(gr) %>% as.character)[, SiteID := 1:.N, by = seqnames]$SiteID
+
+  if (is.null(gr$LabelChannel))
+    gr$LabelChannel = 1
+
+  if (is.null(gr$StdDev))
+    gr$StdDev = 1
+
+  if (is.null(gr$Coverage))
+    gr$Coverage = 1
+
+  if (is.null(gr$Occurrence))
+    gr$Occurrence = 1
+
+  gr$Position = start(gr)
+  gr$ContigLength = seqlengths(gr)[seqnames(gr) %>% as.character]
+
+  numsites = gr2dt(gr)[, .N, keyby = seqnames]
+  gr$NumSites = numsites[.(as.character(seqnames(gr))), N]
+
+  ## dummy ends apparently required for cmap
+  ends = gr.end(si2gr(seqlengths(gr))) %Q% (seqnames %in% as.character(seqnames(gr))) %>% gr.stripstrand
+  ends$Position = start(ends)
+  ends$CMapId = ends %>% seqnames %>% as.integer  
+  ends$LabelChannel = 0
+  ends$StdDev = 0
+  ends$Coverage = 1
+  ends$Occurrence = 0
+  ends$NumSites = numsites[.(as.character(seqnames(ends))), N]
+  ends$SiteID = numsites[.(as.character(seqnames(ends))), N]+1
+  ends$ContigLength = seqlengths(ends)[seqnames(ends) %>% as.character]
+
+  gr = sort(grbind(gr, ends))
+
+  channels = pmax(length(unique(gr$LabelChannel))-1, channels, na.rm = TRUE)
+
+  header = c(
+    paste0("# CMAP File Version:", version),
+    paste0("# Label Channels:", channels),
+    paste0("# Nickase Recognition Site: ", 1:length(sites), ":", sites),
+    paste0("# Number of Consensus Nanomaps:	", length(seqlevels(gr))),        
+    "#h CMapId	ContigLength	NumSites	SiteID	LabelChannel	Position	StdDev	Coverage	Occurrence",
+    "#f int	float	int	int	int	float	float	int	int"
+  )
+
+  writeLines(header, path)
+  fwrite(as.data.table(values(gr))[, c('CMapId', 'ContigLength', 'NumSites', 'SiteID', 'LabelChannel', 'Position', 'StdDev', 'Coverage', 'Occurrence')], path, append = TRUE, sep = '\t', col.names = FALSE)
+}
 
 
+#' @name read_xmap
+#' @title read_xmap
+#'
+#' @description
+#'
+#' Reads xmap as GRangesList
+#' using
+#' https://bionanogenomics.com/wp-content/uploads/2017/03/30040-XMAP-File-Format-Specification-Sheet.pdf
+#' as guide. The outputted GRangesList has one GRangesList Items per molecule, each
+#' containing an ordered set of GRanges, each cooresponding to a mapped location
+#' of a fluorescent marker in each molecule
+#'
+#' If lift = TRUE (default) then will lift markers to genome using the
+#' affine transformation defined by the xmap i.e. scaling and
+#' offset of query and reference coordinates. This transformation is defined by
+#' QryStartPos, QryEndPos, RefStartPos, RefEndPos fields in the xmap. 
+#' 
+#' @param path path to cmap file
+#' @param lift logical flag whether to lift the original marks to reference via the map implied by the mapping (TRUE), if alse will just use the reference mark annotations
+#' @param grl logical flag whether to return a GRangesList representing each molecule as an ordered walk (ie where markers are ordered according to the SiteId in the query cmap)
+#' @author Marcin Imielinski
+#' @export
+read_xmap = function(path, lift = TRUE, grl = TRUE)
+{
+  lines = readLines(path)
+  
+  ## header column starts with #h, so we find then strip
+  header = gsub('^\\#h\\s+', '', grep('^\\#h', lines, value = TRUE))
+  
+  ## data are hashless lines
+  data = grep('^\\#', lines, value = TRUE, invert = TRUE)
 
+  if (!length(data))
+  {
+      if (grl)
+        return(GRangesList())
+      else
+        return(GRanges())
+  }
+  
+  ## now concatenate, paste collapse so can feed into fread
+  dat = fread(paste(c(header, data), collapse = '\n'))
+  dat$listid = 1:nrow(dat) %>% as.character
+
+  ## dat has one row per "alignment" ie marker set 
+  ## process alignment string
+  al = dunlist(strsplit(gsub('^\\(', '', dat$Alignment), '[\\(\\)]+'))
+  al = cbind(al, reshape::colsplit(al$V1, split = ',', names = c('refsite', 'querysite')))
+  al[, listid := as.character(listid)]
+
+  ## split gr cols vs grl cols
+  cols = setdiff(names(dat), c('Alignment', 'HitEnum'))
+             
+  ## merge the alignments which will expand dat for every mark
+  dat.marks = dat[, cols, with = FALSE]
+  datal = merge(dat.marks, al[, .(listid, refsite, querysite)], by = 'listid')
+
+  ## read query and reference cmaps to merge  ]
+  qcmap = read_cmap(gsub('.xmap', '_q.cmap', path), gr = FALSE)
+  rcmap = read_cmap(gsub('.xmap', '_r.cmap', path), gr = FALSE)
+
+  setkeyv(qcmap, c("CMapId", "SiteID"))
+  setkeyv(rcmap, c("CMapId", "SiteID"))
+
+  ## merge in query alignment data
+  datal = cbind(datal, qcmap[.(datal$QryContigID, datal$querysite), ][, .(qpos = start)])
+  datal = cbind(datal, rcmap[.(datal$RefContigID, datal$refsite), ][, .(rpos = start)])
+
+  datal[, seqnames := RefContigID]
+  datal[, strand := Orientation]
+  ## adjust rpos
+  if (lift)
+  {
+    ## first compute scaling (stretching) factor between molecule and reference
+    datal[, scale := abs(RefEndPos-RefStartPos)/abs(QryEndPos-QryStartPos)]
+    datal[, lpos := round(scale*abs(qpos-QryStartPos)+RefStartPos)]
+    datal[, ":="(start = lpos, end = lpos)]
+  }
+  else
+  {
+    datal[, ":="(start = rpos, end = rpos)]    
+  }
+
+  gr.cols = c('refsite', 'querysite', 'qpos', 'rpos','lpos')
+  grl.cols = c('XmapEntryID', 'QryContigID', 'RefContigID', 'QryStartPos', 'QryEndPos', 'RefStartPos', 'RefEndPos', 'Orientation', 'Confidence', 'HitEnum')
+  setkeyv(datal, c("QryContigID", "RefContigID"))
+
+  gr = gr.fix(dt2gr(datal))
+  
+  if (!grl)
+    return(gr)
+
+  grl = split(gr[, gr.cols], gr$XmapEntryID)
+  setkey(dat, XmapEntryID)
+  values(grl) = dat[.(grl  %>% names %>% as.integer), grl.cols, with = FALSE]
+  return(grl)
+}
+
+
+#' @name walks2cmap
+#' @title walks2cmap
+#'
+#' @description
+#'
+#' Dumps walks representing rearranged alleles, defined on some reference cmap to a new
+#' cmap in "walk coordinates" i.e. allelic coordinates.
+#' 
+#' 
+#' @param walks walks GRangesList of walks on reference ref
+#' @param outdir directory to dump cmaps to ... one file per walk
+#' @param ref  reference corresponding to coordinates on which walks are defined
+#' @param mc.cores how many cores to use when dumping cmap files
+#' @export
+walks2cmap = function(walks, outdir = './walks/', ref = skidb_env('HG19.BN'), mc.cores = 1)
+{
+  ## read reference cmap
+  ref = read_cmap(ref)
+
+  ## make sp Chain to walk coordinates
+  spc = gChain::spChain(walks)
+
+  ## lift ref cmap onto walks
+  out.gr = sort(lift(spc, ref))
+
+  ## dump each walk to cmap file
+  useq = unique(as.character(seqnames(out.gr)))
+  system(paste('mkdir -p', outdir))
+
+  mclapply(useq, function(x) write_cmap(out.gr[seqnames(out.gr) == x],
+                                        paste(outdir,'/', x, '.cmap', sep = '')), mc.cores = mc.cores)
+
+  message('dumped ', length(walks), ' walks')
+}
+
+
+#' @name read_bionano_hg
+#' @title read_bionano_hg
+#'
+#' @description
+#'
+#' Reads bionano hg as GRanges
+#' 
+#' @param path path to cmap file
+#' @export
+read_bionano_hg = function(path = NULL, hg19 = TRUE, hg38 = FALSE)
+{
+  if (hg19)
+    path = skidb_env('HG19.BN')
+
+  if (hg38)
+    path = skidb_env('HG38.BN')
+
+  return(read_cmap(path))
+}
+
+#' @name refAligner
+#' @title refAligner
+#'
+#' @description
+#'
+#' Run refAligner given params
+#' 
+#' @param bnx path to bnx file
+#' @param outdir output directory where to dump results
+#' @param maxthreads additional parameters to
+#' @param maxmem max memory
+#' @export
+refAligner = function(bnx, out.prefix = NULL, ref = skidb_env('HG19.BN'),
+                      maxthreads = 1, flags = '-RAmem "0 0" -QPmem "0 0" -MPmem 0 0 -RAscoremem 0',
+                      refaligner = '~/modules/RefAligner/RefAligner',
+                      maxmem = ceiling(maxthreads*3.5))
+{
+  if (is.null(out.prefix))
+    out.prefix = sprintf('/tmp/%s/%s.%s.aligned', Sys.getenv('USER'), as.numeric(Sys.time()), runif(1))
+
+  system(paste('mkdir -p', dirname(out.prefix)))
+  cmd = sprintf('%s -f -ref %s -i %s -maxthreads %s -maxmem %s %s -o %s',
+          refaligner,
+          ref,
+          bnx,
+          maxthreads,
+          maxmem,
+          flags,
+          out.prefix)
+  system(cmd)
+
+  read_xmap(paste0(out.prefix, '.xmap', sep = ''))
+}
+
+#' @name read_bedpe
+#' @title read_bedpe
+#' @param fn the file path to the BEDPE file or gzipped
+#' @param seqlengths force the output to have such seqlengths
+#' @export
+read_bedpe = function(fn, seqlengths = NULL){
+    dat = fread(fn)
+    if (is.element("ix", colnames(dat))){
+        warning("Overwriting the 'ix' field in the input data.")
+    }
+    dat[, ix := seq_len(.N)]
+    cns = colnames(dat)
+    gr1 = dat[, c(cns[1:3], "ix"), with = FALSE]
+    if (is.element("strand1", cns)){
+        gr1 = cbind(gr1, dat[, .(strand1)])
+    }
+    colnames(gr1) = c("chr", "start", "end", "ix", "strand")
+    gr1[, iix := 1]
+    gr2 = dat[, c(cns[4:6], "ix"), with = FALSE]
+    if (is.element("strand2", cns)){
+        gr2 = cbind(gr2, dat[, .(strand2)])
+    }
+    colnames(gr2) = c("chr", "start", "end", "ix", "strand")
+    gr2[, iix := 2]
+    gr = dt2gr(rbind(gr1, gr2),
+               seqlengths = seqlengths)
+    grl = split(gr, gr$ix)
+    ## merge meta data
+    if (length(cns)>6){
+        md.cns = setdiff(cns[7:length(cns)], c("strand1", "strand2"))
+        md = dat[, md.cns, with = FALSE]
+        values(grl) = md
+    }
+    return(grl)
+}
+
+#' @name write_bedpe
+#' @title write_bedpe
+#' @param grl the GRangesList to be written, every element must be length 2
+#' @param flipstrand whether to
+#' @param annotations character string to prepend at the top of the file
+#' @param 
+#' @description 
+#' @export
+write_bedpe = function(grl,
+                       fn = "./test.bedpe",
+                       annotations = NULL,
+                       cols = NULL){
+    annotations = as.character(annotations)
+    if (length(annotations)>0){
+        writeLines(paste("##", annotations), fn)
+    }
+    header = c("chrom1", "start1", "end1",
+               "chrom2", "start2", "end2",
+               "name", "score",
+               "strand1", "strand2")
+    if (length(empty.ix <- which(elementNROWS(grl)==0)) > 0){
+        warning(length(empty.ix), "elements are empty, disregard.")
+        grl = grl[-empty.ix]
+    }
+    if (length(single.ix <- which(elementNROWS(grl)==1)) > 0){
+        warning(length(single.ix), "elements have only single range, disregard.")
+        grl = grl[-single.ix]
+    }
+    if (length(more.ix <- which(elementNROWS(grl)>2)) > 0){
+        warning(length(more.ix), "elements have more than two range, will expand consecutive pairs.")
+    }    
+    if (length(grl)==0){
+        warning("Empty input")
+        fwrite(setNames(data.table(matrix(nrow = 0, ncol = length(header))), header), fn,
+               append = TRUE, sep = "\t", col.names = TRUE, row.names = FALSE)
+        return(fn)
+    }            
+    dat = gr2dt(grl.unlist(grl))
+    nms = names(grl)
+    if (is.element("score", colnames(values(grl)))){
+        score = values(grl)$score
+    } else {
+        score = rep(".", length.out = length(grl))
+    }
+    if (is.null(nms)){
+        nms = seq_along(grl)
+    }
+    cns = colnames(dat)
+    grl.cns = colnames(values(grl))
+    gr.cns = setdiff(
+        cns, c(grl.cns, "seqnames", "start",
+               "end", "strand", "width",
+               "grl.ix", "grl.iix"))
+    if (length(cols)>0 && is.character(cols)){
+        grl.cns = intersect(grl.cns, cols)
+        gr.cns = intersect(gr.cns, cols)
+    }
+    setkeyv(dat, c("grl.ix", "grl.iix"))
+    out = dat[, .(iix1 = grl.iix[seq_len(.N-1)],
+                  iix2 = grl.iix[seq_len(.N-1)+1]), by = grl.ix]
+    out = merge(
+        out,
+        dat[
+          , .(grl.ix, iix1 = grl.iix,
+              chrom1 = seqnames,
+              start1 = start,
+              end1 = end,
+              strand1 = strand)],
+        by = c("grl.ix", "iix1"),
+        all.x = TRUE)
+    out = merge(
+        out,
+        dat[
+          , .(grl.ix,
+              iix2 = grl.iix,
+              chrom2 = seqnames,
+              start2 = start,
+              end2 = end,
+              strand2 = strand)],
+        by = c("grl.ix", "iix2"),
+        all.x = TRUE)
+    if (length(grl.cns)>0){
+        out = merge(out,
+                    dat[, .SD[1, grl.cns, with = FALSE], by = grl.ix],
+                    by = "grl.ix", all.x = TRUE)
+    }    
+    if (length(gr.cns)>0){
+        out = merge(out,
+                    dat[, .SD[, gr.cns, with = FALSE], by = .(grl.ix, iix1 = grl.iix)],
+                    by = c("grl.ix", "iix1"),
+                    all.x = TRUE)
+        out = merge(out,
+                    dat[, .SD[, gr.cns, with = FALSE], by = .(grl.ix, iix2 = grl.iix)],
+                    by = c("grl.ix", "iix2"),
+                    all.x = TRUE)
+    }
+    fwrite(cbind(
+        out[, .(chrom1, start1, end1,
+                chrom2, start2, end2,
+                name = nms,
+                score = score,
+                grl.ix, iix1, iix2)],
+        out[, setdiff(colnames(out),
+                      c("chrom1", "start1", "end1",
+                        "chomr2", "start2", "end2",
+                        "name", "score", "grl.ix", "iix1", "iix2")),
+            with = FALSE]
+    ),
+    fn,
+    append = TRUE,
+    col.names = TRUE,
+    row.names = FALSE,
+    sep = "\t")
+    return(out)
+}

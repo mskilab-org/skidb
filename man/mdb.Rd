@@ -4,7 +4,8 @@
 \alias{mdb}
 \title{mdb}
 \usage{
-mdb(fn, where = NULL, name = "data_table", all = FALSE, con = FALSE)
+mdb(fn, where = NULL, name = "data_table", all = FALSE,
+  con = FALSE)
 }
 \arguments{
 \item{fn}{filename or DBI connection to sqllite}

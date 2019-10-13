@@ -7,7 +7,7 @@
 meme(sequences, basedir = "./", alphabet = NULL, tilim = 18000,
   maxsize = 60000, nmotifs = 8, minw = 3, anr = FALSE, maxw = 50,
   revcomp = TRUE, mc.cores = 1,
-  MEMEPATH = "/gpfs/commons/groups/imielinski_lab/Software/MEME/meme_4.11.2/bin/meme")
+  MEMEPATH = "/gpfs/commons/home/mimielinski/software/meme/bin/meme")
 }
 \description{
 run meme on biostring input
