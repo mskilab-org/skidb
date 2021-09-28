@@ -4,8 +4,13 @@
 \alias{read.xml}
 \title{read.xml}
 \usage{
-read.xml(files, pattern = NULL, as.data.table = TRUE, na.sort = TRUE,
-  mc.cores = 1)
+read.xml(
+  files,
+  pattern = NULL,
+  as.data.table = TRUE,
+  na.sort = TRUE,
+  mc.cores = 1
+)
 }
 \description{
 reads a bunch of xml in files into data.table, flattens, and

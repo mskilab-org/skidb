@@ -4,9 +4,17 @@
 \alias{read_vcf}
 \title{parses VCF into GRanges or data.table}
 \usage{
-read_vcf(fn, gr = NULL, hg = "hg19", geno = NULL,
-  swap.header = NULL, verbose = FALSE, add.path = FALSE,
-  tmp.dir = "~/temp/.tmpvcf", ...)
+read_vcf(
+  fn,
+  gr = NULL,
+  hg = "hg19",
+  geno = NULL,
+  swap.header = NULL,
+  verbose = FALSE,
+  add.path = FALSE,
+  tmp.dir = "~/temp/.tmpvcf",
+  ...
+)
 }
 \arguments{
 \item{fn}{argument to parse via bcftools}

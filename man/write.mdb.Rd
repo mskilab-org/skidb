@@ -4,8 +4,15 @@
 \alias{write.mdb}
 \title{write.mdb}
 \usage{
-write.mdb(dt, fn = tempdir(), name = "data_table", max.varchar = 256,
-  index_on = NULL, overwrite = TRUE, verbose = TRUE)
+write.mdb(
+  dt,
+  fn = tempdir(),
+  name = "data_table",
+  max.varchar = 256,
+  index_on = NULL,
+  overwrite = TRUE,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{dt}{(keyed) data.table}

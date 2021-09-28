@@ -19,4 +19,4 @@ Suggests:
     testthat
 License: MIT
 LazyData: true
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.2

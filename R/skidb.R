@@ -3313,7 +3313,7 @@ read_maf = function(fn, nskip = NULL, cols = NULL, dt = FALSE, add.path = FALSE,
 #'
 #' @author Marcin Imielinski
 #' @export
-write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
+write_vcf = function(vars, filename, sname = "", info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT")))
 {
     genoh = DataFrame(row.names = 'GT', Number = 1, Type = 'Float', Description = 'Genotypes')
 
@@ -3361,6 +3361,7 @@ write_vcf = function(vars, filename, sname = "mysample", info.fields = setdiff(n
         vars$FILTER =  "PASS"
 
 
+    ##    vcf = asVCF(VRanges(seqnames(vars), ranges(vars), ref = vars$REF, alt = vars$ALT, sampleNames = rep(sname, length(vars))))
     vcf = asVCF(VRanges(seqnames(vars), ranges(vars), ref = vars$REF, alt = vars$ALT, sampleNames = rep(sname, length(vars))))
 
     for (field in info.fields)
@@ -4538,7 +4539,7 @@ write_cmap = function(gr, path = NULL,
     gr$LabelChannel = 1
 
   if (is.null(gr$StdDev))
-    gr$StdDev = 1
+    gr$StdDev = 1.0
 
   if (is.null(gr$Coverage))
     gr$Coverage = 1
@@ -4546,23 +4547,23 @@ write_cmap = function(gr, path = NULL,
   if (is.null(gr$Occurrence))
     gr$Occurrence = 1
 
-  gr$Position = start(gr)
-  gr$ContigLength = seqlengths(gr)[seqnames(gr) %>% as.character]
+  gr$Position = as.numeric(start(gr))
+  gr$ContigLength = as.numeric(seqlengths(gr)[seqnames(gr) %>% as.character])
 
   numsites = gr2dt(gr)[, .N, keyby = seqnames]
   gr$NumSites = numsites[.(as.character(seqnames(gr))), N]
 
   ## dummy ends apparently required for cmap
   ends = gr.end(si2gr(seqlengths(gr))) %Q% (seqnames %in% as.character(seqnames(gr))) %>% gr.stripstrand
-  ends$Position = start(ends)
+  ends$Position = as.numeric(start(ends))
   ends$CMapId = ends %>% seqnames %>% as.integer  
   ends$LabelChannel = 0
-  ends$StdDev = 0
+  ends$StdDev = 0.0
   ends$Coverage = 1
   ends$Occurrence = 0
   ends$NumSites = numsites[.(as.character(seqnames(ends))), N]
   ends$SiteID = numsites[.(as.character(seqnames(ends))), N]+1
-  ends$ContigLength = seqlengths(ends)[seqnames(ends) %>% as.character]
+  ends$ContigLength = as.numeric(seqlengths(ends)[seqnames(ends) %>% as.character])
 
   gr = sort(grbind(gr, ends))
 
@@ -4578,6 +4579,9 @@ write_cmap = function(gr, path = NULL,
   )
 
   writeLines(header, path)
+  gr$ContigLength = format(gr$ContigLength, nsmall=1)
+  gr$Position = format(gr$Position, nsmall=1)
+  gr$StdDev = format(gr$StdDev, nsmall=1)
   fwrite(as.data.table(values(gr))[, c('CMapId', 'ContigLength', 'NumSites', 'SiteID', 'LabelChannel', 'Position', 'StdDev', 'Coverage', 'Occurrence')], path, append = TRUE, sep = '\t', col.names = FALSE)
 }
 
@@ -4600,19 +4604,29 @@ write_cmap = function(gr, path = NULL,
 #' QryStartPos, QryEndPos, RefStartPos, RefEndPos fields in the xmap. 
 #' 
 #' @param path path to cmap file
+#' @param win only import ranges overlapping a given interval
+#' @param merge logical flag specifying whether to merge the xmap with the cmaps 
 #' @param lift logical flag whether to lift the original marks to reference via the map implied by the mapping (TRUE), if alse will just use the reference mark annotations
 #' @param grl logical flag whether to return a GRangesList representing each molecule as an ordered walk (ie where markers are ordered according to the SiteId in the query cmap)
+#' @param seqlevels vectors of reference seqlevels which is indexed by the 1-based integer RefContigID and CMapId in xmap and reference cmap, respectively.  NOTE: seqlevels may need to be provided in order to output a GRanges that is compatible with a standard genome reference (eg 1,..,22, X, Y)
 #' @author Marcin Imielinski
 #' @export
-read_xmap = function(path, lift = TRUE, grl = TRUE)
+read_xmap = function(path, win = NULL, merge = TRUE, lift = TRUE, grl = TRUE, verbose = FALSE, seqlevels = NULL)
 {
   lines = readLines(path)
-  
+  if (verbose)
+    message('loaded file') 
+
   ## header column starts with #h, so we find then strip
   header = gsub('^\\#h\\s+', '', grep('^\\#h', lines, value = TRUE))
   
   ## data are hashless lines
   data = grep('^\\#', lines, value = TRUE, invert = TRUE)
+
+  if (verbose)
+    message('found header') 
+
+  lift = merge & lift
 
   if (!length(data))
   {
@@ -4626,57 +4640,112 @@ read_xmap = function(path, lift = TRUE, grl = TRUE)
   dat = fread(paste(c(header, data), collapse = '\n'))
   dat$listid = 1:nrow(dat) %>% as.character
 
-  ## dat has one row per "alignment" ie marker set 
-  ## process alignment string
-  al = dunlist(strsplit(gsub('^\\(', '', dat$Alignment), '[\\(\\)]+'))
-  al = cbind(al, reshape::colsplit(al$V1, split = ',', names = c('refsite', 'querysite')))
-  al[, listid := as.character(listid)]
-
+  if (verbose)
+    message('finished fread') 
+  
   ## split gr cols vs grl cols
   cols = setdiff(names(dat), c('Alignment', 'HitEnum'))
-             
+  
   ## merge the alignments which will expand dat for every mark
   dat.marks = dat[, cols, with = FALSE]
-  datal = merge(dat.marks, al[, .(listid, refsite, querysite)], by = 'listid')
 
-  ## read query and reference cmaps to merge  ]
-  qcmap = read_cmap(gsub('.xmap', '_q.cmap', path), gr = FALSE)
-  rcmap = read_cmap(gsub('.xmap', '_r.cmap', path), gr = FALSE)
+  if (!is.null(seqlevels))
+    dat.marks[, RefContigID := seqlevels[RefContigID]]
 
-  setkeyv(qcmap, c("CMapId", "SiteID"))
-  setkeyv(rcmap, c("CMapId", "SiteID"))
+  if (!is.null(win))
+  {
+    cid = dat.marks[GRanges(RefContigID, IRanges(RefStartPos, RefEndPos)) %^% win, QryContigID] %>% unique
+    setkey(dat.marks, QryContigID)
+    dat.marks = dat.marks[.(cid), ]
 
-  ## merge in query alignment data
-  datal = cbind(datal, qcmap[.(datal$QryContigID, datal$querysite), ][, .(qpos = start)])
-  datal = cbind(datal, rcmap[.(datal$RefContigID, datal$refsite), ][, .(rpos = start)])
+    if (verbose)
+      message('subsetted to region of interest')
+  }
+
+  if (merge)
+    {
+      
+      ## dat has one row per "alignment" ie marker set 
+      ## process alignment string
+      al = dunlist(strsplit(gsub('^\\(', '', dat$Alignment), '[\\(\\)]+'))
+      al = cbind(al, reshape::colsplit(al$V1, split = ',', names = c('refsite', 'querysite')))
+      al[, listid := as.character(listid)]
+
+      datal = merge(dat.marks, al[, .(listid, refsite, querysite)], by = 'listid')
+      
+      ## read query and reference cmaps to merge  ]
+      if (verbose)
+        message('reading in query cmap')
+
+
+      qcmap = read_cmap(gsub('.xmap', '_q.cmap', path), gr = FALSE, seqlevels = seqlevels)
+      
+      if (verbose)
+        message('reading in reference cmap')
+      rcmap = read_cmap(gsub('.xmap', '_r.cmap', path), gr = FALSE, seqlevels = seqlevels)     
+
+      setkeyv(qcmap, c("CMapId", "SiteID"))
+      setkeyv(rcmap, c("CMapId", "SiteID"))
+
+      ## merge in query and reference cmap data
+      datal = cbind(datal, qcmap[.(datal$QryContigID, datal$querysite), ][, .(qpos = start)])
+      if (verbose)
+        message('merged xmap with query cmap')
+
+      datal = cbind(datal, rcmap[.(datal$RefContigID, datal$refsite), ][, .(rpos = start)])
+      if (verbose)
+        message('merged xmap with reference cmap')
+    }
+  else
+  {
+    datal = dat.marks
+    datal[, qpos := pmin(QryStartPos, QryEndPos)]
+  }
 
   datal[, seqnames := RefContigID]
   datal[, strand := Orientation]
   ## adjust rpos
-  if (lift)
+  if (merge)
   {
-    ## first compute scaling (stretching) factor between molecule and reference
-    datal[, scale := abs(RefEndPos-RefStartPos)/abs(QryEndPos-QryStartPos)]
-    datal[, lpos := round(scale*abs(qpos-QryStartPos)+RefStartPos)]
-    datal[, ":="(start = lpos, end = lpos)]
+    datal = unique(datal, by = c('QryContigID', 'querysite'))
+
+    if (lift)
+    {
+      ## first compute scaling (stretching) factor between molecule and reference
+      datal[, scale := abs(RefEndPos-RefStartPos)/abs(QryEndPos-QryStartPos)]
+      datal[, lpos := round(scale*abs(qpos-QryStartPos)+RefStartPos)]
+      datal[, ":="(start = lpos, end = lpos)]
+
+      if (verbose)
+        message('calculated lifted marker coordinates')
+    }
+    else
+    {
+      datal[, ":="(start = rpos, end = rpos)]    
+    }
   }
   else
   {
-    datal[, ":="(start = rpos, end = rpos)]    
+    datal[, ":="(start = RefStartPos, end = RefEndPos)]
   }
 
-  gr.cols = c('refsite', 'querysite', 'qpos', 'rpos','lpos')
-  grl.cols = c('XmapEntryID', 'QryContigID', 'RefContigID', 'QryStartPos', 'QryEndPos', 'RefStartPos', 'RefEndPos', 'Orientation', 'Confidence', 'HitEnum')
-  setkeyv(datal, c("QryContigID", "RefContigID"))
+  gr.cols = c('refsite', 'querysite', 'qpos', 'rpos','lpos', 'XmapEntryID', 'QryContigID', 'RefContigID', 'QryStartPos', 'QryEndPos', 'RefStartPos', 'RefEndPos', 'Orientation', 'Confidence', 'HitEnum') %>% intersect(names(datal))
+
+
+  ## need to order the contig alignments with respect to query coordinate
+  setkeyv(datal, c("QryContigID", "qpos"))
 
   gr = gr.fix(dt2gr(datal))
   
   if (!grl)
     return(gr)
 
-  grl = split(gr[, gr.cols], gr$XmapEntryID)
-  setkey(dat, XmapEntryID)
-  values(grl) = dat[.(grl  %>% names %>% as.integer), grl.cols, with = FALSE]
+  if (verbose)
+    message('splitting into GRangesList')
+
+  grl = split(gr[, gr.cols], gr$QryContigID)
+
+  values(grl) = data.frame(contig = names(grl))
   return(grl)
 }
 
@@ -4922,3 +4991,91 @@ write_bedpe = function(grl,
     sep = "\t")
     return(out)
 }
+
+
+
+#' @name read_fubar
+#' @title read_fubar
+#' @description
+#'
+#' Reads the json output of Hyphy / FUBAR
+#'
+#' @export
+read_fubar = function(file, long = TRUE)
+{
+  fubar = jsonlite::read_json(file)
+  tmp = as.data.table(do.call(rbind, lapply(fubar$MLE$content[[1]], unlist)) )
+  cnames = sapply(fubar$MLE$headers, '[', long+1) %>% gsub('\\W', '_', .) %>% tolower %>% gsub('_$', '', .)
+  setnames(tmp, 1:length(cnames), cnames)
+  out = cbind(data.table(pos = 1:nrow(tmp)), tmp[, cnames, with = FALSE])
+  out
+}
+
+
+#' @name read.json
+#' @title read.json
+#' @description
+#'
+#' Reads json and flattens results returning data.table of results as a single row
+#' 
+read.json = function(file, long = TRUE)
+{
+  return(as.data.table(rbind(unlist(jsonlite::read_json(file)))))
+}
+
+
+#' @name read.strelka
+#' @title read.strelka
+#' @description
+#'
+#' Reads strelka or strelka 2 vcf (via read_vcf)  and processes alt / ref counts for
+#' SNV and indel alleles for both tumor and normal.
+#' Stores these (along with other geno tags) as
+#' $ref.counts $alt.counts, $vaf
+#' $nref.counts $nalt.counts, $nvaf
+#'
+#' @param vcf path to vcf file
+#' @param tsample string identifying the tumor sample (TUMOR)
+#' @param nsample string identifying the normal sample (NORMAL)
+#' @author Marcin Imielinski
+#' @export
+#' @return vcf annotated with fields $ref
+read.strelka = function(vcf, tsample = 'TUMOR', nsample = 'NORMAL', ...)
+{
+  vcf = suppressWarnings(read_vcf(vcf, geno = TRUE, ...))
+  vcf$alt = unstrsplit(vcf$ALT) %>% as.character
+  vcf$ref = unstrsplit(vcf$REF) %>% as.character
+  vcf$snv = nchar(vcf$REF) == nchar(vcf$alt)
+  vcf$id = 1:length(vcf)
+
+
+  bs = c('A', 'C', 'G', 'T')
+  cols = c(paste0(bs, 'U_', tsample, '.1'), sprintf('TAR_%s.1', tsample), sprintf('TIR_%s.1', tsample))
+  bases = vcf[, c(cols, 'id')] %>% values %>% as.data.table
+  setnames(bases, cols, c(bs, 'REF', 'ALT'))
+  basesm = melt(bases, id.var = 'id')
+  setkeyv(basesm, c('id', 'variable'))
+
+  ix = vcf$snv == TRUE
+  vcf$alt.count[ix] = basesm[.(vcf$id[ix], vcf$alt[ix]), value]
+  vcf$ref.count[ix] = basesm[.(vcf$id[ix], vcf$ref[ix]), value]
+
+  vcf$alt.count[!ix] = basesm[.(vcf$id[!ix], rep('ALT', sum(!ix))), value]
+  vcf$ref.count[!ix] = basesm[.(vcf$id[!ix], rep('REF', sum(!ix))), value]
+
+  vcf$vaf = vcf$alt.count/(vcf$alt.count + vcf$ref.count)
+
+  ncols = c(paste0(bs, 'U_', nsample, '.1'), sprintf('TAR_%s.1', nsample), sprintf('TIR_%s.1', nsample))
+  nbases = vcf[, c(ncols, 'id')] %>% values %>% as.data.table
+  setnames(nbases, ncols, c(bs, 'REF', 'ALT'))
+  nbasesm = melt(nbases, id.var = 'id')
+  setkeyv(nbasesm, c('id', 'variable'))
+
+  vcf$nalt.count[ix] = nbasesm[.(vcf$id[ix], vcf$alt[ix]), value]
+  vcf$nref.count[ix] = nbasesm[.(vcf$id[ix], vcf$ref[ix]), value]
+  vcf$nalt.count[!ix] = nbasesm[.(vcf$id[!ix], rep('ALT', sum(!ix))), value]
+  vcf$nref.count[!ix] = nbasesm[.(vcf$id[!ix], rep('REF', sum(!ix))), value]
+  vcf$nvaf = vcf$nalt.count/(vcf$nalt.count + vcf$nref.count)
+  return(vcf)
+}
+

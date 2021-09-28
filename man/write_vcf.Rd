@@ -4,13 +4,19 @@
 \alias{write_vcf}
 \title{write_vcf}
 \usage{
-write_vcf(vars, filename, sname = "mysample",
-  info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF",
-  "ALT")))
+write_vcf(
+  vars,
+  filename,
+  sname = "mysample",
+  info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT"))
+)
 
-write_vcf(vars, filename, sname = "mysample",
-  info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF",
-  "ALT")))
+write_vcf(
+  vars,
+  filename,
+  sname = "mysample",
+  info.fields = setdiff(names(values(vars)), c("FILTER", "GT", "REF", "ALT"))
+)
 }
 \arguments{
 \item{vars}{info info}

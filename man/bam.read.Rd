@@ -4,10 +4,21 @@
 \alias{bam.read}
 \title{bam.read}
 \usage{
-bam.read(bam, out.file = NULL, region = NULL, fields = c("seq"),
-  tags = c("MD", "BX"), nlines = NULL, estimate.lines = TRUE,
-  skip = NULL, chunksize = 1e+05, mc.cores = 1, min.mapq = 0,
-  samtools.flag = "", verbose = TRUE)
+bam.read(
+  bam,
+  out.file = NULL,
+  region = NULL,
+  fields = c("seq"),
+  tags = c("MD", "BX"),
+  nlines = NULL,
+  estimate.lines = TRUE,
+  skip = NULL,
+  chunksize = 1e+05,
+  mc.cores = 1,
+  min.mapq = 0,
+  samtools.flag = "",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{bam}{bam file}
