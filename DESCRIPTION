@@ -6,6 +6,8 @@ Author: Marcin Imielinski <mimielinski@nygenome.org>
 Maintainer: Marcin Imielinski <mimielinski@nygenome.org>
 Description: Misc R functions for dealing with common flat file formats, DBs, and software inputs and outputs.
 biocViews:
+Remotes:
+    github::mskilab/gUtils
 Depends:
     R (>= 3.1.0),
     GenomicRanges
